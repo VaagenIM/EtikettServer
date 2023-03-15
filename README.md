@@ -1,11 +1,13 @@
 <div align="center">
-<h1>EtikettServer for Vågen Utstyrsbase</h1>
-Simple barcode and QR code label generator for the Vågen Utstyrsbase. Adds an API endpoint to preview and print labels with Brother labelprinters.
+<h1>Etikett Server for Vågen Utstyrsbase</h1>
+Simple barcode and QR code label generator for the Vågen Utstyrsbase. (with API endpoints)
 <br>
-<img src="barcode.png" width="300" alt="Barcode label preview">
-<img src="qr.png" width="300" alt="QR label preview">
 
 Label dimensions: `29x90mm`
+
+<img src="barcode_long.png" width="300" alt="Barcode label preview">
+<img src="qr_long.png" width="300" alt="QR label preview">
+
 
 </div>
 
