@@ -1,5 +1,3 @@
-from typing import Tuple
-
 import flask
 from LabelGenerator import create_label, InventoryItem, LabelType
 
@@ -70,7 +68,6 @@ def preview():
     label = create_label(item, variant=variant)
     label.save("preview.png")
 
-    # display the image
     return """<html>
     <head>
         <title>Label Generator</title>
