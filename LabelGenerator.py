@@ -81,7 +81,7 @@ def _qr_label(content: InventoryItem) -> PIL.Image:
 def _barcode_label(content: InventoryItem) -> PIL.Image:
     """Create a barcode label (Code 128) for the given content."""
     options = {
-        'module_height': 10,
+        'module_height': 18,
         'module_width': .25,
         'font_size': 10,
         'text_distance': 4.1,
