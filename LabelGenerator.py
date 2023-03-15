@@ -1,85 +1,110 @@
-from dataclasses import dataclass
 import qrcode
 import PIL
+import barcode
 from PIL import ImageFont, Image, ImageDraw
+from barcode import writer
+from dataclasses import dataclass
+from enum import Enum, auto
+
+dpi = 300
 
 
-def to_pixels(mm, dpi=300):
+def to_pixels(mm: float) -> int:
+    """Convert millimeters to pixels."""
     return int(mm / 25.4 * dpi)
 
 
-def rect(x, y):
+def rect(x: float, y: float) -> tuple:
+    """Convert a rectangle from millimeters to pixels."""
     return to_pixels(x), to_pixels(y)
+
+
+label_size = rect(90, 29)
 
 
 @dataclass
 class InventoryItem:
     id: str
     item_name: str
-    item_category: str
 
 
-font_id = ImageFont.truetype("consola.ttf", size=24)
-font_name = ImageFont.truetype("arial.ttf", size=64)
-font_category = ImageFont.truetype("arial.ttf", size=36)
-
-label_size = rect(90, 29)
-qr_size = rect(24, 24)
-qr_id_size = rect(19, 6)
-info_size = rect(60, 29)
-padding = to_pixels(2)
+class LabelType(Enum):
+    QR = auto()
+    BARCODE = auto()
 
 
-def create_label(content: InventoryItem) -> PIL.Image:
-    content.item_category = f"Lagerplass: {content.item_category}"
+def _qr_label(content: InventoryItem) -> PIL.Image:
+    """Create a QR code label for the given content."""
+    font_id = ImageFont.truetype("consola.ttf", size=36)
+    font_name = ImageFont.truetype("times.ttf", size=64)
+    font_small = ImageFont.truetype("arial.ttf", size=24)
 
-    qr = qrcode.QRCode(
-        version=1,
-        error_correction=qrcode.constants.ERROR_CORRECT_L,
-        box_size=1,
-        border=0,
-    )
+    qr = qrcode.QRCode(border=0)
     qr.add_data(content.id)
-    qr.make(fit=True)
     qr_img = qr.make_image(fill_color="black", back_color="white").convert("RGB")
-    qr_img = qr_img.resize(qr_size, resample=PIL.Image.NEAREST)
+    qr_img = qr_img.resize(rect(27, 27), resample=PIL.Image.NEAREST)
 
-    qr_id = PIL.Image.new("RGB", qr_id_size, color="white")
-    qr_id_draw = PIL.ImageDraw.Draw(qr_id)
-    qr_id_draw.text(
-        (int(qr_img.width / 2), to_pixels(1)),
-        content.id,
-        font=font_id,
-        fill="black",
-        anchor="mm",
-        align="center",
-    )
-
-    info = PIL.Image.new("RGB", info_size, color="white")
+    # Create the info box
+    info = PIL.Image.new("RGB", rect(61, 27), color="white")
     info_draw = PIL.ImageDraw.Draw(info)
-    info_draw.text(
-        (to_pixels(1), to_pixels(1)),
-        content.item_name,
-        font=font_name,
-        fill="black",
-        stroke_width=1,
-    )
 
-    info_draw.text(
-        (to_pixels(1), to_pixels(7)),
-        content.item_category,
-        font=font_category,
-        fill="black",
-    )
+    def draw_text(text, y, font, stroke_width=0, fill="black"):
+        # TODO: Add support for long text (wrap), though it's unlikely to be needed
+        info_draw.text(
+            (to_pixels(30.5), to_pixels(y)),
+            text,
+            font=font,
+            fill=fill,
+            align="left",
+            anchor="mm",
+            stroke_width=stroke_width,
+        )
 
+    # Add logo.png
     logo = PIL.Image.open("logo.png")
-    logo = logo.resize((to_pixels(42), to_pixels(14)), resample=PIL.Image.LANCZOS)
-    info.paste(logo, (to_pixels(17), to_pixels(13)))
+    logo = logo.resize(rect(22, 7.5), resample=PIL.Image.LANCZOS)
+    info.paste(logo, (to_pixels(19.5), to_pixels(0)))
 
-    # Create the label
+    # Add text
+    draw_text(content.item_name, 13, font_name, stroke_width=1)
+    draw_text('Utstyrskode:', 22, font_small)
+    draw_text(content.id, 25, font_id)
+
+    # Construct the label
     label = PIL.Image.new("RGB", label_size, color="white")
     label.paste(qr_img, (to_pixels(1), to_pixels(1)))
-    label.paste(qr_id, (to_pixels(1), to_pixels(26)))
     label.paste(info, (qr_img.width + to_pixels(1), to_pixels(1)))
 
     return label
+
+
+def _barcode_label(content: InventoryItem) -> PIL.Image:
+    """Create a barcode label (Code 128) for the given content."""
+    options = {
+        'module_height': 10,
+        'module_width': .25,
+        'font_size': 10,
+        'text_distance': 4.1,
+    }
+    image = barcode.get('code128', content.id, writer=barcode.writer.ImageWriter())
+    image = image.render(options)
+
+    # Resize the image to fit the label, if needed
+    if image.width > label_size[0]:
+        image = image.resize((label_size[0], int(image.height * (label_size[0] / image.width))), resample=PIL.Image.LANCZOS)
+
+    # Construct the label
+    label = PIL.Image.new("RGB", label_size, color="white")
+    label.paste(image, (int((label_size[0] - image.width) / 2), int((label_size[1] - image.height) / 2 + to_pixels(1.5))))
+
+    return label
+
+
+def create_label(content: InventoryItem, variant: LabelType = LabelType.QR) -> PIL.Image:
+    """Create a label for the given content and type."""
+    print(f"Creating label for {content.id} ({variant})")
+    if variant == LabelType.QR:
+        return _qr_label(content)
+    if variant == LabelType.BARCODE:
+        return _barcode_label(content)
+    raise NotImplementedError()
