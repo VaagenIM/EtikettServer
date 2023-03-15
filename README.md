@@ -21,7 +21,7 @@ Run with `python api.py` and go to `http://localhost:5000/` in your browser. You
 ## Endpoints
 The following parameters is used by every endpoint:
 ```python
-id = "6500-01"
+id = "A6500-01"
 name = "Sony A6500"
 variant = "qr"  # "qr" or "barcode", default: "qr"
 ```

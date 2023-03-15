@@ -81,21 +81,38 @@ def _qr_label(content: InventoryItem) -> PIL.Image:
 def _barcode_label(content: InventoryItem) -> PIL.Image:
     """Create a barcode label (Code 128) for the given content."""
     options = {
-        'module_height': 18,
+        'module_height': 22,
         'module_width': .25,
-        'font_size': 10,
-        'text_distance': 4.1,
+        'font_size': 0,
     }
     image = barcode.get('code128', content.id, writer=barcode.writer.ImageWriter())
     image = image.render(options)
 
     # Resize the image to fit the label, if needed
     if image.width > label_size[0]:
-        image = image.resize((label_size[0], int(image.height * (label_size[0] / image.width))), resample=PIL.Image.LANCZOS)
+        image = image.resize((label_size[0] - to_pixels(2), image.height), resample=PIL.Image.NEAREST)
+
+    # Add the ID text to the image, centered at the bottom of the barcode
+    id_text = PIL.Image.new("RGBA", (label_size[0], to_pixels(4)))
+    id_text_draw = PIL.ImageDraw.Draw(id_text)
+    id_text_draw.text(
+        (label_size[0] / 2, to_pixels(2)),
+        content.id,
+        font=ImageFont.truetype("consola.ttf", size=36),
+        fill="black",
+        align="center",
+        anchor="mm",
+    )
+    id_text = id_text.crop(id_text.getbbox())
+
+    # Add a white background to the text, adds some padding, which needs to be accounted for
+    id_text_with_backdrop = PIL.Image.new("RGBA", (id_text.size[0] + to_pixels(2), id_text.size[1] + to_pixels(2)), color="white")
+    id_text_with_backdrop.paste(id_text, rect(1, .75), id_text)
 
     # Construct the label
     label = PIL.Image.new("RGB", label_size, color="white")
-    label.paste(image, (int((label_size[0] - image.width) / 2), int((label_size[1] - image.height) / 2 + to_pixels(1.5))))
+    label.paste(image, (int((label_size[0] - image.width) / 2), int((label_size[1] - image.height) / 2)))
+    label.paste(id_text_with_backdrop, (int((label_size[0] - id_text.width) / 2) - to_pixels(1), to_pixels(22.5)), id_text_with_backdrop)
 
     return label
 
