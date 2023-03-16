@@ -29,8 +29,8 @@ variant = "qr"  # "qr" or "barcode", default: "qr"
 ### GET `/preview`
 Returns a preview of the label in the browser, with a button to print it.
 
-### POST `/preview`
-Same as above, but only returns the image data. Useful for embedding in other applications.
+### GET `/preview_raw`
+Same as above, but only returns the image. Useful for embedding in other applications.
 
 ### POST `/print`
 Prints the label to the connected printer. (Requires setup of printer in `api.py`)

@@ -92,8 +92,8 @@ def preview():
 </html>""".format(item_id=item.id, item_name=item.item_name, variant=variant)
 
 
-@app.route('/preview', methods=['POST'])
-def preview_post():
+@app.route('/preview_raw', methods=['GET'])
+def preview_raw():
     item, variant = get_inventory_item(flask.request.args)
     label = create_label(item, variant=variant)
     label.save("preview.png")
@@ -103,11 +103,12 @@ def preview_post():
 
 @app.route('/print', methods=['POST'])
 def print_label():
-    item, variant = get_inventory_item(flask.request.args)
+    item, variant = get_inventory_item(flask.request.json)
     label = create_label(item, variant=variant)
-    count = flask.request.args.get('count', 1)
+    count = flask.request.json.get('count', 1)
 
-    return "NOT IMPLEMENTED YET"
+    print(f"Printed {count} labels for {item}. (NOT IMPLEMENTED YET)")
+    return f"Printed {count} labels for {item}. (NOT IMPLEMENTED YET)"
 
 
 app.run(host='0.0.0.0', port=5000)
