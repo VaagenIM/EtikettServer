@@ -34,7 +34,7 @@ variant = "qr"  # "qr" or "barcode", default: "qr"
 Returns a preview of the label, useful for getting a preview of the label before printing.
 
 ### POST `/print`
-Prints the label to the connected printer. (Requires setup of printer in `api.py`)
+Prints the label to the connected printer. (Requires setup of printer in `app.py`)
 
 Adds the `count` parameter, which specifies how many labels to print. Default: `1`
 ```python
@@ -42,4 +42,4 @@ count = 2  # Print 2 labels, default: 1
 ```
 
 ## TODO
-`api.py` add connection to brother printers
+`app.py` add connection to brother printers
