@@ -62,7 +62,7 @@ def home():
 </html>"""
 
 
-@app.route('/preview', methods=['POST'])
+@app.route('/preview', methods=['GET'])
 def preview():
     item, variant = get_inventory_item(flask.request.args)
     label = create_label(item, variant=variant)
@@ -90,7 +90,7 @@ def preview():
 </html>""".format(item_id=item.id, item_name=item.item_name, variant=variant)
 
 
-@app.route('/preview', methods=['GET'])
+@app.route('/preview', methods=['POST'])
 def preview_post():
     item, variant = get_inventory_item(flask.request.args)
     label = create_label(item, variant=variant)
@@ -103,6 +103,7 @@ def preview_post():
 def print_label():
     item, variant = get_inventory_item(flask.request.args)
     label = create_label(item, variant=variant)
+    count = flask.request.args.get('count', 1)
 
     return "NOT IMPLEMENTED YET"
 

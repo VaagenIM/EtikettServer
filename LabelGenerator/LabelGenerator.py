@@ -36,8 +36,8 @@ class LabelType(Enum):
 def _qr_label(content: InventoryItem) -> PIL.Image:
     """Create a QR code label for the given content."""
     font_id = ImageFont.truetype("consola.ttf", size=36)
-    font_name = ImageFont.truetype("times.ttf", size=64)
-    font_small = ImageFont.truetype("arial.ttf", size=24)
+    font_name = ImageFont.truetype("times.ttf", size=86)
+    font_small = ImageFont.truetype("arial.ttf", size=22)
 
     qr = qrcode.QRCode(border=0)
     qr.add_data(content.id)
@@ -63,17 +63,23 @@ def _qr_label(content: InventoryItem) -> PIL.Image:
     # Add logo.png
     logo = PIL.Image.open("logo.png")
     logo = logo.resize(rect(22, 7.5), resample=PIL.Image.LANCZOS)
-    info.paste(logo, (to_pixels(19.5), to_pixels(0)))
 
-    # Add text
-    draw_text(content.item_name, 13, font_name, stroke_width=1)
-    draw_text('Utstyrskode:', 22, font_small)
+    # Find the correct font size
+    while info_draw.textbbox((0, 0), content.item_name, font=font_name, align="left", anchor="mm")[2] > to_pixels(28):
+        font_name = font_name.font_variant(size=font_name.size - 1)
+    while info_draw.textbbox((0, 0), content.id, font=font_id, align="left", anchor="mm")[2] > to_pixels(26):
+        font_id = font_id.font_variant(size=font_id.size - 1)
+
+    # Draw the text
+    draw_text(content.item_name, 13.5, font_name, stroke_width=1)
     draw_text(content.id, 25, font_id)
+    draw_text('Utstyrskode:', 22, font_small)
 
     # Construct the label
     label = PIL.Image.new("RGB", label_size, color="white")
     label.paste(qr_img, (to_pixels(1), to_pixels(1)))
     label.paste(info, (qr_img.width + to_pixels(1), to_pixels(1)))
+    label.paste(logo, (to_pixels(47.5), to_pixels(2)))
 
     return label
 

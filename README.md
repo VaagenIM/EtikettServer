@@ -35,5 +35,10 @@ Same as above, but only returns the image data. Useful for embedding in other ap
 ### POST `/print`
 Prints the label to the connected printer. (Requires setup of printer in `api.py`)
 
+Adds the `count` parameter, which specifies how many labels to print. Default: `1`
+```python
+count = 2  # Print 2 labels, default: 1
+```
+
 ## TODO
 `api.py` add connection to brother printers
