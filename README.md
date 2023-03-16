@@ -20,7 +20,7 @@ Used fonts:
 - https://fonts.google.com/specimen/JetBrains+Mono
 
 ## Usage
-Run with `python api.py` and go to `http://localhost:5000/` in your browser to design and print labels. You can also integrate in your own application by using the API endpoints.
+Run with `python app.py` and go to `http://localhost:5000/` in your browser to design and print labels. You can also integrate in your own application by using the API endpoints.
 
 ## Endpoints
 The following parameters is used by every endpoint:
