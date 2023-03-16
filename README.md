@@ -1,6 +1,6 @@
 <div align="center">
 <h1>Etikett Server for Vågen Utstyrsbase</h1>
-Simple barcode and QR code label generator for the Vågen Utstyrsbase. (with API endpoints)
+Simple barcode and QR code label generator API for the Vågen Utstyrsbase.
 <br>
 
 Label dimensions: `29x90mm`
@@ -15,8 +15,12 @@ Label dimensions: `29x90mm`
 1. Clone the repository
 2. Run `pip install -r requirements.txt`
 
+Used fonts: 
+- https://fonts.google.com/specimen/Lato
+- https://fonts.google.com/specimen/JetBrains+Mono
+
 ## Usage
-Run with `python api.py` and go to `http://localhost:5000/` in your browser. You can also use the API directly.
+Run with `python api.py` and go to `http://localhost:5000/` in your browser to design and print labels. You can also integrate in your own application by using the API endpoints.
 
 ## Endpoints
 The following parameters is used by every endpoint:
@@ -26,11 +30,8 @@ name = "Sony A6500"
 variant = "qr"  # "qr" or "barcode", default: "qr"
 ```
 
-### GET `/preview`
-Returns a preview of the label in the browser, with a button to print it.
-
-### GET `/preview_raw`
-Same as above, but only returns the image. Useful for embedding in other applications.
+### GET & POST `/preview`
+Returns a preview of the label, useful for getting a preview of the label before printing.
 
 ### POST `/print`
 Prints the label to the connected printer. (Requires setup of printer in `api.py`)
