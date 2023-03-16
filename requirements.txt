@@ -2,3 +2,4 @@ qrcode
 pillow
 python-barcode
 flask
+flask-cors

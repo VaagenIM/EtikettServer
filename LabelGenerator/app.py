@@ -1,7 +1,9 @@
 import flask
 from LabelGenerator import create_label, InventoryItem, LabelType
+from flask_cors import CORS
 
 app = flask.Flask(__name__)
+CORS(app)
 
 
 def get_inventory_item(args: dict) -> tuple[InventoryItem, LabelType]:
@@ -108,4 +110,4 @@ def print_label():
     return "NOT IMPLEMENTED YET"
 
 
-app.run(host='localhost', port=5000)
+app.run(host='0.0.0.0', port=5000)
