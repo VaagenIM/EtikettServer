@@ -1,10 +1,24 @@
 import io
 import flask
+import PIL.Image
 from LabelGenerator import create_label, InventoryItem, LabelType
 from flask_cors import CORS
 
 app = flask.Flask(__name__)
 CORS(app)
+
+label_size = (901, 306)
+
+# The offset of the label on the label sheet, might need some manual tweaking to get it right
+x_offset = 15
+y_offset = 12
+
+
+def make_label(img: PIL.Image) -> PIL.Image:
+    """Add the offset to the given image."""
+    new_label = PIL.Image.new("RGB", label_size, color="white")
+    new_label.paste(img, (x_offset, y_offset))
+    return new_label
 
 
 def request_to_json(request) -> dict:
@@ -49,7 +63,7 @@ def home():
                     <h1>Vågens' Etikett Server</h1>
                     <h2>Made with ❤️ by <a href="https:github.com/sondregronas">Sondre Grønås</a></h2>
                 </hgroup>
-                <img src="/preview" alt="Forhåndsvisning" id="preview" style="height:120px; border-radius: 5px;">
+                <img src="/preview" alt="Forhåndsvisning" id="preview" style="height:120px; border: 5px solid white; border-radius: 5px;">
             </center>
             <br>
             <form action="/print" method="POST">
@@ -141,6 +155,7 @@ def print_label():
         }), 400
 
     label = create_label(item, variant=variant)
+    label = make_label(label)
 
     img_bytes = io.BytesIO()
     label.save(img_bytes, format='PNG')

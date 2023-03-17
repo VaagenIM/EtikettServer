@@ -1,4 +1,4 @@
-from LabelGenerator.LabelGenerator import create_label, InventoryItem, LabelType
+from src.LabelGenerator import create_label, InventoryItem, LabelType
 
 label = create_label(InventoryItem("A6500-01", "Sony A6500"))
 label.save("qr.png")
