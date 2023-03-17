@@ -35,15 +35,15 @@ class LabelType(Enum):
 
 def _qr_label(content: InventoryItem) -> PIL.Image:
     """Create a QR code label for the given content."""
-    font_id = ImageFont.truetype("JetBrainsMono-Light.ttf", size=32)
-    font_name = ImageFont.truetype("LatoWeb-Regular.ttf", size=114)
-    font_small = ImageFont.truetype("LatoWeb-Light.ttf", size=22)
-    font_logo = ImageFont.truetype("LatoWeb-Bold.ttf", size=40)
+    font_id = ImageFont.truetype("JetBrainsMono-Light.ttf", size=36)
+    font_name = ImageFont.truetype("Lato-Regular.ttf", size=114)
+    font_small = ImageFont.truetype("Lato-Light.ttf", size=28)
+    font_logo = ImageFont.truetype("Lato-Bold.ttf", size=40)
 
     qr = qrcode.QRCode(border=0)
     qr.add_data(content.id)
     qr_img = qr.make_image(fill_color="black", back_color="white").convert("RGB")
-    qr_img = qr_img.resize(rect(27, 27), resample=PIL.Image.NEAREST)
+    qr_img = qr_img.resize(rect(24, 24), resample=PIL.Image.NEAREST)
 
     # Create the info box
     info = PIL.Image.new("RGB", rect(61, 40), color="white")
@@ -63,9 +63,9 @@ def _qr_label(content: InventoryItem) -> PIL.Image:
 
     logo = PIL.Image.new("RGB", rect(58, 6), color="white")
     logo_draw = PIL.ImageDraw.Draw(logo)
-    logo_draw.ellipse((rect(4, 0), rect(8, 5)), fill="red", outline="red", width=15)
-    logo_draw.ellipse((rect(50, 0), rect(54, 5)), fill="red", outline="red", width=15)
-    logo_draw.rectangle((rect(6, 0), rect(52, 5)), fill="red", outline="red", width=15)
+    logo_draw.ellipse((rect(4, 0), rect(8, 5)), fill="black", outline="black", width=15)
+    logo_draw.ellipse((rect(50, 0), rect(54, 5)), fill="black", outline="black", width=15)
+    logo_draw.rectangle((rect(6, 0), rect(52, 5)), fill="black", outline="black", width=15)
     logo_draw.text((to_pixels(29), to_pixels(2.6)), "Vågen Videregående Skole", font=font_logo, fill="white", align="left", anchor="mm")
 
     # Find the correct font size
@@ -75,17 +75,18 @@ def _qr_label(content: InventoryItem) -> PIL.Image:
         font_id = font_id.font_variant(size=font_id.size - 1)
 
     # Draw the text
-    draw_text(content.item_name, 14.5, font_name, stroke_width=1)
-    draw_text(content.id, 25, font_id)
-    draw_text('Utstyrskode:', 22.5, font_small)
+    draw_text(content.item_name, 14, font_name, stroke_width=1)
+    draw_text(content.id, 23.2, font_id)
+    # draw_text('Utstyrskode:', 20.2, font_small)
 
     # Construct the label
     label = PIL.Image.new("RGB", label_size, color="white")
-    label.paste(qr_img, (to_pixels(1), to_pixels(1)))
-    label.paste(info, (qr_img.width + to_pixels(1), to_pixels(1)))
-    label.paste(logo, (to_pixels(30), to_pixels(2)))
 
-    return label
+    label.paste(info, (qr_img.width + to_pixels(3), to_pixels(1)))
+    label.paste(logo, (to_pixels(29), to_pixels(2)))
+    label.paste(qr_img, (to_pixels(2), to_pixels(2)))
+
+    return label.resize((901, 306), resample=PIL.Image.NEAREST)
 
 
 def _barcode_label(content: InventoryItem) -> PIL.Image:
@@ -106,9 +107,9 @@ def _barcode_label(content: InventoryItem) -> PIL.Image:
 
     # Construct the label
     label = PIL.Image.new("RGB", label_size, color="white")
-    label.paste(image, (int((label_size[0] - image.width) / 2), int((label_size[1] - image.height) / 2 + to_pixels(1.5))))
+    label.paste(image, (int((label_size[0] - image.width) / 2), int((label_size[1] - image.height) / 2)))
 
-    return label
+    return label.resize((901, 306), resample=PIL.Image.NEAREST)
 
 
 def create_label(content: InventoryItem, variant: LabelType = LabelType.QR) -> PIL.Image:
