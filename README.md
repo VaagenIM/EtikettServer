@@ -3,7 +3,7 @@
 Simple barcode and QR code label generator API for the Vågen Utstyrsbase.
 <br>
 
-Label dimensions: `29x90mm`
+Label dimensions: `16x54mm` (Could update this to work for other sizes as well, but for now it's hardcoded with spaghetti code.)
 
 <img src="demo/qr_long.png" style="border-radius: 5px; border: 10px solid white; background-color: white;" width="300" alt="QR label preview">
 <img src="demo/barcode_long.png" style="border-radius: 5px; border: 10px solid white; background-color: white;" width="300" alt="Barcode label preview">

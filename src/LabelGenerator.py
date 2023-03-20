@@ -6,9 +6,9 @@ from barcode import writer
 from dataclasses import dataclass
 from enum import Enum, auto
 
-lx = int(991 * .99)
-ly = int(306 * .85)
-padding = 40
+lx = int(1132 * .99)
+ly = int(330 * .85)
+padding = 20
 
 
 @dataclass
@@ -24,9 +24,9 @@ class LabelType(Enum):
 
 def _qr_label(content: InventoryItem) -> PIL.Image:
     """Create a QR code label for the given content."""
-    font_id = ImageFont.truetype("JetBrainsMono-Light.ttf", size=36)
-    font_name = ImageFont.truetype("Lato-Regular.ttf", size=114)
-    font_logo = ImageFont.truetype("Lato-Bold.ttf", size=40)
+    font_id = ImageFont.truetype("JetBrainsMono-Light.ttf", size=int(ly/8.38))
+    font_name = ImageFont.truetype("Lato-Regular.ttf", size=int(ly/2.28))
+    font_logo = ImageFont.truetype("Lato-Bold.ttf", size=int(ly/6.5))
 
     qr_size = (ly, ly)
     info_size = (lx - ly, ly)
@@ -52,9 +52,9 @@ def _qr_label(content: InventoryItem) -> PIL.Image:
             stroke_width=stroke_width,
         )
 
-    logo_start = 20
-    logo_end = info_size[0] - 20
-    logo_height = 72
+    logo_start = 40
+    logo_end = info_size[0] - 40
+    logo_height = int(ly / 3.61)
 
     # Create the logo (black pill, white text)
     logo = PIL.Image.new("RGB", (logo_end, logo_height), color="white")
@@ -86,8 +86,8 @@ def _qr_label(content: InventoryItem) -> PIL.Image:
 def _barcode_label(content: InventoryItem) -> PIL.Image:
     """Create a barcode label (Code 128) for the given content."""
     options = {
-        'module_height': 16,
-        'module_width': .35,
+        'module_height': ly/16.25,
+        'module_width': ly/742.857,
         'font_size': 0,
     }
     image = barcode.get('code128', content.id, writer=barcode.writer.ImageWriter())
@@ -100,15 +100,15 @@ def _barcode_label(content: InventoryItem) -> PIL.Image:
     # Construct the label
     label = PIL.Image.new("RGB", (lx, ly), color="white")
     # Add the barcode in the center
-    label.paste(image, (int((lx - image.width) / 2), int((ly - image.height) / 2) - 15))
+    label.paste(image, (int((lx - image.width) / 2), int((ly - image.height) / 2) - 12))
     # Add the text below the barcode
-    font_id = ImageFont.truetype("JetBrainsMono-Light.ttf", size=34)
+    font_id = ImageFont.truetype("JetBrainsMono-Light.ttf", size=int(ly/7.647))
 
     id_draw = PIL.ImageDraw.Draw(label)
     while (id_draw.textbbox((0, 0), content.id, font=font_id, align="left", anchor="mm")[2] * 2) > lx - padding:
         font_id = font_id.font_variant(size=font_id.size - 1)
     id_draw.text(
-        (lx / 2, ly - 26),
+        (lx / 2, ly - 28),
         content.id,
         font=font_id,
         fill="black",

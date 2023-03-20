@@ -13,18 +13,22 @@ app = flask.Flask(__name__)
 CORS(app)
 
 fqdn = ""  # If empty, all connections are allowed
-label_size = (991, 306)
 
-dev = usb.core.find(idVendor=0x04f9, idProduct=0x209c)
-dev.reset()
+
+try:
+    dev = usb.core.find(idVendor=0x04f9, idProduct=0x209c)
+    dev.reset()
+except AttributeError:
+    raise RuntimeError("Printer not found")
 
 # brother-ql config
+label_size = (1132, 330)
 #ql_backend = 'linux_kernel'
 #ql_printer = '/dev/usb/lp0'
 ql_backend = 'pyusb'
-ql_printer= 'usb://0x04f9:0x209c'
+ql_printer = 'usb://0x04f9:0x209c'
 ql_model = 'QL-810W'
-ql_label = "29x90"
+ql_label = "17x54"
 
 # The offset of the label on the label sheet, might need some manual tweaking to get it right
 x_offset = 15
@@ -222,7 +226,7 @@ def brother_print(im, attempt: int = 0):
         dither=False,
         compress=False,
         red=False,  # Only True if using Red/Black 62 mm label tape.
-        dpi_600=False,
+        dpi_600=True,
         hq=True,  # False for low quality.
         cut=True
     )
