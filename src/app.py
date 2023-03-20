@@ -93,7 +93,7 @@ def home():
             <center>
                 <hgroup>
                     <h1>Vågens' Etikett Server</h1>
-                    <h2>Made with ❤️ by <a href="https:github.com/VaagenIM/EtikettServer">Sondre Grønås</a></h2>
+                    <h2>Made with ❤️ by <a href="https://github.com/VaagenIM/EtikettServer">Sondre Grønås</a></h2>
                 </hgroup>
                 <img src="/preview" alt="Forhåndsvisning" id="preview" style="height:120px; border: 5px solid white; border-radius: 5px;">
             </center>
