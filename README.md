@@ -14,7 +14,7 @@ Label dimensions: `29x90mm`
 ## Installation
 1. Clone the repository
 2. Run `pip install -r requirements.txt`
-3. Linux: Enable Serial Port, run `sudo apt-get install libusb-1.0-0-dev`
+3. Download fonts from the links below, you might have to put them in the `src` folder
 
 Fonts: 
 - https://fonts.google.com/specimen/Lato

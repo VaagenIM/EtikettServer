@@ -83,7 +83,7 @@ def home():
             <center>
                 <hgroup>
                     <h1>Vågens' Etikett Server</h1>
-                    <h2>Made with ❤️ by <a href="https:github.com/sondregronas">Sondre Grønås</a></h2>
+                    <h2>Made with ❤️ by <a href="https:github.com/VaagenIM/EtikettServer">Sondre Grønås</a></h2>
                 </hgroup>
                 <img src="/preview" alt="Forhåndsvisning" id="preview" style="height:120px; border: 5px solid white; border-radius: 5px;">
             </center>
@@ -98,11 +98,21 @@ def home():
                     <input type="text" name="name" id="name" class="form-control" placeholder="Enhetsnavn (Sony A6500)" onchange="updatePreview()">
                 </div>
                 <div class="form-group">
-                    <label for="variant">Variant</label>
-                    <select name="variant" id="variant" class="form-control" onchange="updatePreview()">
-                        <option value="qr">QR</option>
-                        <option value="barcode">Strekkode</option>
-                    </select>
+                    <table>
+                        <tr>
+                            <td>
+                                <label for="variant">Variant</label>
+                                <select name="variant" id="variant" class="form-control" onchange="updatePreview()">
+                                    <option value="qr">QR</option>
+                                    <option value="barcode">Strekkode</option>
+                                </select>
+                            </td>
+                            <td>
+                                <label for="count">Antall</label>
+                                <input type="number" name="count" id="count" class="form-control" value="1" onchange="enforceMinMax(this, 1, 9);">
+                            </td>
+                        </tr>
+                    </table>
                 </div>
             </form>
             <button class="btn btn-primary" onclick="printLabel(new FormData(document.querySelector('form')))">Send til printer</button>
@@ -166,6 +176,7 @@ def print_label():
         }), 403
 
     data = request_to_json(flask.request)
+    count = int(data.get('count', 1))
     item, variant = get_inventory_item(data)
 
     if not item.id or not item.item_name:
@@ -177,7 +188,8 @@ def print_label():
     label = make_label(label)
 
     try:
-        brother_print(label)
+        for i in range(count):
+            brother_print(label)
     except FileNotFoundError:
         return flask.jsonify({
             'error': 'Failed to print label',

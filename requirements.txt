@@ -4,3 +4,4 @@ python-barcode
 flask
 flask-cors
 brother-ql
+pyusb
