@@ -1,6 +1,6 @@
 import io
 import time
-
+import usb.core
 import flask
 import PIL.Image
 from LabelGenerator import create_label, InventoryItem, LabelType
@@ -15,9 +15,14 @@ CORS(app)
 fqdn = ""  # If empty, all connections are allowed
 label_size = (991, 306)
 
+dev = usb.core.find(idVendor=0x04f9, idProduct=0x209c)
+dev.reset()
+
 # brother-ql config
-ql_backend = 'linux_kernel'
-ql_printer = '/dev/usb/lp0'
+#ql_backend = 'linux_kernel'
+#ql_printer = '/dev/usb/lp0'
+ql_backend = 'pyusb'
+ql_printer= 'usb://0x04f9:0x209c'
 ql_model = 'QL-810W'
 ql_label = "29x90"
 
@@ -187,7 +192,7 @@ def brother_print(im, attempt: int = 0):
     qlr = BrotherQLRaster(ql_model)
     qlr.exception_on_warning = True
 
-    if attempt > 30:
+    if attempt > 5:
         raise FileNotFoundError(f"Failed to print label, ${ql_printer} not found.")
 
     instructions = convert(
