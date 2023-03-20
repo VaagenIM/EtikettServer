@@ -80,7 +80,7 @@ def _qr_label(content: InventoryItem) -> PIL.Image:
 
     # Draw the text
     draw_text(content.item_name, ly / 4 - 3, font_name, stroke_width=1)
-    draw_text(content.id, ly / 2 + 30, font_id)
+    draw_text(content.id, ly / 2 + 35, font_id)
 
     # Construct the label
     label = PIL.Image.new("RGB", (lx, ly), color="white")
@@ -113,19 +113,19 @@ def _barcode_label(content: InventoryItem) -> PIL.Image:
     # Add the logo to the top
     # Add the barcode in the center
     label.paste(image, (int((lx - image.width) / 2), int((ly - image.height) / 2) - 3))
-    label.paste(logo, (int((lx - logo.width - 75) / 2), 2))
+    label.paste(logo, (int((lx - logo.width - 100) / 2), 2))
     # Add the text below the barcode
-    font_id = ImageFont.truetype("JetBrainsMono-Light.ttf", size=int(ly/7.647))
+    font_id = ImageFont.truetype("JetBrainsMono-Light.ttf", size=int(ly/6.5))
 
     id_draw = PIL.ImageDraw.Draw(label)
     while (id_draw.textbbox((0, 0), content.id, font=font_id, align="left", anchor="mm")[2] * 2) > lx - padding:
         font_id = font_id.font_variant(size=font_id.size - 1)
     id_draw.text(
-        (lx / 2, ly - 34),
+        (lx / 2, ly - 38),
         content.id,
         font=font_id,
         fill="black",
-        align="left",
+        align="center",
         anchor="mm",
         stroke_width=0,
     )
