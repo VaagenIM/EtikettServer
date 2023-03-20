@@ -1,13 +1,25 @@
 import io
+import time
+
 import flask
 import PIL.Image
 from LabelGenerator import create_label, InventoryItem, LabelType
 from flask_cors import CORS
+from brother_ql.conversion import convert
+from brother_ql.backends.helpers import send
+from brother_ql.raster import BrotherQLRaster
 
 app = flask.Flask(__name__)
 CORS(app)
 
-label_size = (901, 306)
+fqdn = ""  # If empty, all connections are allowed
+label_size = (991, 306)
+
+# brother-ql config
+ql_backend = 'linux_kernel'
+ql_printer = '/dev/usb/lp0'
+ql_model = 'QL-810W'
+ql_label = "29x90"
 
 # The offset of the label on the label sheet, might need some manual tweaking to get it right
 x_offset = 15
@@ -24,6 +36,8 @@ def make_label(img: PIL.Image) -> PIL.Image:
 def request_to_json(request) -> dict:
     """Get the JSON from the given request, JSON if possible, otherwise form data."""
     try:
+        if not request.json:
+            raise flask.wrappers.BadRequest("No JSON")
         return request.json
     except flask.wrappers.BadRequest:
         return request.values
@@ -51,6 +65,9 @@ def get_variant(variant: str) -> LabelType:
 
 @app.route('/', methods=['GET'])
 def home():
+    if fqdn and fqdn != flask.request.headers.get('Host'):
+        return flask.redirect(fqdn)
+
     return """<html>
     <head>
         <title>Label Generator</title>
@@ -76,21 +93,11 @@ def home():
                     <input type="text" name="name" id="name" class="form-control" placeholder="Enhetsnavn (Sony A6500)" onchange="updatePreview()">
                 </div>
                 <div class="form-group">
-                    <table>
-                        <tr>
-                            <td>
-                                <label for="variant">Variant</label>
-                                <select name="variant" id="variant" class="form-control" onchange="updatePreview()">
-                                    <option value="qr">QR</option>
-                                    <option value="barcode">Strekkode</option>
-                                </select>
-                            </td>
-                            <td>
-                                <label for="count">Antall</label>
-                                <input type="number" name="count" id="count" class="form-control" value="1" onchange="enforceMinMax(this, 1, 9);">
-                            </td>
-                        </tr>
-                    </table>
+                    <label for="variant">Variant</label>
+                    <select name="variant" id="variant" class="form-control" onchange="updatePreview()">
+                        <option value="qr">QR</option>
+                        <option value="barcode">Strekkode</option>
+                    </select>
                 </div>
             </form>
             <button class="btn btn-primary" onclick="printLabel(new FormData(document.querySelector('form')))">Send til printer</button>
@@ -115,11 +122,11 @@ def home():
                     body: data
                 }).then(response => {
                     let status = document.getElementById("print-status");
-                    if (response.ok) {
-                        status.innerText = `Skrev ut ${data.get("count")} etiketter for "${data.get("id")}"!`;
+                    if (response.status === 200) {
+                        status.innerText = `Skrev ut en etikett for "${data.get("id")}"!`;
                         status.style.color = "green";
                     } else {
-                        status.innerText = `Kunne ikke skrive ut etiketter for '${data.get("id")}'! Dersom feilen vedvarer, kontakt IT.`;
+                        status.innerText = `${response.status} ${response.statusText} - Kunne ikke skrive ut etiketter for '${data.get("id")}'! Dersom feilen vedvarer, kontakt IT.`;
                         status.style.color = "red";
                     }
                 });
@@ -131,6 +138,9 @@ def home():
 
 @app.route('/preview', methods=['GET', 'POST'])
 def preview_raw():
+    if fqdn and fqdn != flask.request.headers.get('Host'):
+        return flask.redirect(fqdn)
+
     data = request_to_json(flask.request)
     item, variant = get_inventory_item(data)
 
@@ -145,9 +155,13 @@ def preview_raw():
 
 @app.route('/print', methods=['POST'])
 def print_label():
+    if fqdn and fqdn != flask.request.headers.get('Host'):
+        return flask.jsonify({
+            'error': 'Not allowed',
+        }), 403
+
     data = request_to_json(flask.request)
     item, variant = get_inventory_item(data)
-    count = data.get('count', 1)
 
     if not item.id or not item.item_name:
         return flask.jsonify({
@@ -157,13 +171,45 @@ def print_label():
     label = create_label(item, variant=variant)
     label = make_label(label)
 
-    img_bytes = io.BytesIO()
-    label.save(img_bytes, format='PNG')
-    img_bytes.seek(0)
+    try:
+        brother_print(label)
+    except FileNotFoundError:
+        return flask.jsonify({
+            'error': 'Failed to print label',
+        }), 500
 
-    print(f"Printed {count} labels for {item}. (NOT IMPLEMENTED YET)")
+    return flask.jsonify({
+        'status': 'ok',
+    }), 200
 
-    return flask.redirect('/')
+
+def brother_print(im, attempt: int = 0):
+    qlr = BrotherQLRaster(ql_model)
+    qlr.exception_on_warning = True
+
+    if attempt > 30:
+        raise FileNotFoundError(f"Failed to print label, ${ql_printer} not found.")
+
+    instructions = convert(
+        qlr=qlr,
+        images=[im],  # Takes a list of file names or PIL objects.
+        label=ql_label,
+        rotate=90,
+        threshold=70.0,  # Black and white threshold in percent.
+        dither=False,
+        compress=False,
+        red=False,  # Only True if using Red/Black 62 mm label tape.
+        dpi_600=False,
+        hq=True,  # False for low quality.
+        cut=True
+    )
+
+    try:
+        send(instructions=instructions, printer_identifier=ql_printer, backend_identifier=ql_backend, blocking=True)
+    except FileNotFoundError:
+        # Printer not found, wait a second and try again, /dev/usb/lp0 is not always ready immediately
+        time.sleep(1)
+        brother_print(im, attempt + 1)
 
 
 app.run(host='0.0.0.0', port=5000)

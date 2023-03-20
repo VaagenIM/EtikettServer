@@ -14,13 +14,14 @@ Label dimensions: `29x90mm`
 ## Installation
 1. Clone the repository
 2. Run `pip install -r requirements.txt`
+3. Linux: Enable Serial Port, run `sudo apt-get install libusb-1.0-0-dev`
 
-Used fonts: 
+Fonts: 
 - https://fonts.google.com/specimen/Lato
 - https://fonts.google.com/specimen/JetBrains+Mono
 
 ## Usage
-Run with `python app.py` and go to `http://localhost:5000/` in your browser to design and print labels. You can also integrate in your own application by using the API endpoints.
+Run with `sudo python app.py` and go to `http://ip-address:5000/` in your browser to design and print labels. You can also integrate in your own application by using the API endpoints.
 
 ## Endpoints
 The following parameters is used by every endpoint:
@@ -35,11 +36,3 @@ Returns a preview of the label, useful for getting a preview of the label before
 
 ### POST `/print`
 Prints the label to the connected printer. (Requires setup of printer in `app.py`)
-
-Adds the `count` parameter, which specifies how many labels to print. Default: `1`
-```python
-count = 2  # Print 2 labels, default: 1
-```
-
-## TODO
-`app.py` add connection to brother printers

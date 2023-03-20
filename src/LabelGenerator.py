@@ -6,7 +6,7 @@ from barcode import writer
 from dataclasses import dataclass
 from enum import Enum, auto
 
-lx = int(901 * .99)
+lx = int(991 * .99)
 ly = int(306 * .85)
 padding = 40
 
