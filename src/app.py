@@ -68,6 +68,11 @@ def get_variant(variant: str) -> LabelType:
         return default
 
 
+@app.route('/favicon.ico')
+def favicon():
+    return flask.send_file("favicon.ico", mimetype='image/vnd.microsoft.icon')
+
+
 @app.route('/', methods=['GET'])
 def home():
     if fqdn and fqdn != flask.request.headers.get('Host'):
@@ -77,6 +82,7 @@ def home():
     <head>
         <title>Label Generator</title>
         <link rel="stylesheet" href="https://unpkg.com/@picocss/pico@latest/css/pico.classless.min.css">
+        <link rel="icon" href="favicon.ico">
     </head>
     <body>
         <main>
