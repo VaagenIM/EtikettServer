@@ -121,7 +121,7 @@ def _barcode_label(content: InventoryItem) -> PIL.Image:
     while (id_draw.textbbox((0, 0), content.id, font=font_id, align="left", anchor="mm")[2] * 2) > lx - padding:
         font_id = font_id.font_variant(size=font_id.size - 1)
     id_draw.text(
-        (lx / 2, ly - 38),
+        (lx / 2, ly - 33),
         content.id,
         font=font_id,
         fill="black",
