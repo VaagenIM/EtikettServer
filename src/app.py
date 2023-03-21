@@ -15,11 +15,15 @@ CORS(app)
 fqdn = ""  # If empty, all connections are allowed
 
 
-try:
-    dev = usb.core.find(idVendor=0x04f9, idProduct=0x209c)
-    dev.reset()
-except AttributeError:
-    raise RuntimeError("Printer not found")
+def connect_printer():
+    try:
+        dev = usb.core.find(idVendor=0x04f9, idProduct=0x209c)
+        dev.reset()
+    except AttributeError:
+        raise("Printer not found, is it connected?")
+    except Exception as e:
+        # NOTE: This is bad practice.
+        raise(f"Unknown error: {e}")
 
 # brother-ql config
 label_size = (1132, 330)
@@ -180,6 +184,14 @@ def preview_raw():
 
 @app.route('/print', methods=['POST'])
 def print_label():
+    try:
+        connect_printer()
+    except Exception as e:
+        print(e)
+        return flask.jsonify({
+            'error': e,
+        }), 500
+
     if fqdn and fqdn != flask.request.headers.get('Host'):
         return flask.jsonify({
             'error': 'Not allowed',
