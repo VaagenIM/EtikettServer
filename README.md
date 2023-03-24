@@ -15,13 +15,14 @@ Label dimensions: `16x54mm` (Could update this to work for other sizes as well, 
 1. Clone the repository
 2. Run `pip install -r requirements.txt`
 3. Download fonts from the links below, you might have to put them in the `src` folder
+4. Configure app.py according to the [brother-ql](https://pypi.org/project/brother-ql/) package
 
 Fonts: 
 - https://fonts.google.com/specimen/Lato
 - https://fonts.google.com/specimen/JetBrains+Mono
 
 ## Usage
-Run with `sudo python app.py` and go to `http://ip-address:5000/` in your browser to design and print labels. You can also integrate in your own application by using the API endpoints.
+Run with `python app.py` and go to `http://ip-address:5000/` in your browser to design and print labels. You can also integrate in your own application by using the API endpoints.
 
 ## Endpoints
 The following parameters is used by every endpoint:

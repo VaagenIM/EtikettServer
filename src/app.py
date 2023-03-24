@@ -77,7 +77,7 @@ def home():
 
     return """<html>
     <head>
-        <title>Label Generator</title>
+        <title>Etikett Server</title>
         <link rel="stylesheet" href="https://unpkg.com/@picocss/pico@latest/css/pico.classless.min.css">
         <link rel="icon" href="favicon.ico">
     </head>
@@ -86,7 +86,7 @@ def home():
             <center>
                 <hgroup>
                     <h1>Vågens' Etikett Server</h1>
-                    <h2>Made with ❤️ by <a href="https:github.com/VaagenIM/EtikettServer">Sondre Grønås</a></h2>
+                    <h2>Made with ❤️ by <a href="https://github.com/VaagenIM/EtikettServer">Sondre Grønås</a></h2>
                 </hgroup>
                 <img src="/preview" alt="Forhåndsvisning" id="preview" style="height:120px; border: 5px solid white; border-radius: 5px;">
             </center>
@@ -118,7 +118,7 @@ def home():
                     </table>
                 </div>
             </form>
-            <button class="btn btn-primary" onclick="printLabel(new FormData(document.querySelector('form')))">Send til printer</button>
+            <button class="btn btn-primary" onclick="printLabel(new FormData(document.querySelector('form')))">Send til skriver</button>
             <p id="print-status"></p>
         </main>
         <script>
@@ -176,8 +176,11 @@ def print_label():
     try:
         dev = usb.core.find(idVendor=0x04f9, idProduct=0x209c)
         dev.reset()
-    except Exception:
-        return flask.jsonify({'error': 'Failed to print label'}), 400
+    except Exception as e:
+        print(e)
+        return flask.jsonify({
+            'error': e,
+        }), 500
 
     if fqdn and fqdn != flask.request.headers.get('Host'):
         return flask.jsonify({
@@ -214,7 +217,7 @@ def brother_print(im, attempt: int = 0):
     qlr.exception_on_warning = True
 
     if attempt > 5:
-        raise FileNotFoundError(f"Failed to print label, ${ql_printer} not found.")
+        raise FileNotFoundError(f"Failed to print label, ${ql_printer} not found?")
 
     instructions = convert(
         qlr=qlr,
@@ -232,8 +235,8 @@ def brother_print(im, attempt: int = 0):
 
     try:
         send(instructions=instructions, printer_identifier=ql_printer, backend_identifier=ql_backend, blocking=True)
-    except FileNotFoundError:
-        # Printer not found, wait a second and try again, /dev/usb/lp0 is not always ready immediately
+    except Exception:
+        # Re-try on errors, before raising an error
         time.sleep(1)
         brother_print(im, attempt + 1)
 
