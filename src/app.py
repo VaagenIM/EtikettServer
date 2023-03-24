@@ -13,9 +13,9 @@ app = flask.Flask(__name__)
 CORS(app)
 
 fqdn = ""  # If empty, all connections are allowed
+label_size = (1132, 330)
 
 # brother-ql config
-label_size = (1132, 330)
 #ql_backend = 'linux_kernel'
 #ql_printer = '/dev/usb/lp0'
 ql_backend = 'pyusb'
@@ -118,7 +118,7 @@ def home():
                     </table>
                 </div>
             </form>
-            <button class="btn btn-primary" onclick="printLabel(new FormData(document.querySelector('form')))">Send til skriver</button>
+            <button class="btn btn-primary" onclick="printLabel(new FormData(document.querySelector('form')))">Send til printer</button>
             <p id="print-status"></p>
         </main>
         <script>
@@ -176,12 +176,8 @@ def print_label():
     try:
         dev = usb.core.find(idVendor=0x04f9, idProduct=0x209c)
         dev.reset()
-    except Exception as e:
-        print(e)
-        return flask.jsonify({
-            'error': e,
-        }), 500
-
+    except Exception:
+        return flask.jsonify({'error': 'Failed to print label'}), 500
     if fqdn and fqdn != flask.request.headers.get('Host'):
         return flask.jsonify({
             'error': 'Not allowed',
@@ -236,7 +232,7 @@ def brother_print(im, attempt: int = 0):
     try:
         send(instructions=instructions, printer_identifier=ql_printer, backend_identifier=ql_backend, blocking=True)
     except Exception:
-        # Re-try on errors, before raising an error
+        # Re-try after waiting a second
         time.sleep(1)
         brother_print(im, attempt + 1)
 
