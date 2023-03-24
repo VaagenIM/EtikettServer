@@ -14,13 +14,6 @@ CORS(app)
 
 fqdn = ""  # If empty, all connections are allowed
 
-
-try:
-    dev = usb.core.find(idVendor=0x04f9, idProduct=0x209c)
-    dev.reset()
-except AttributeError:
-    raise RuntimeError("Printer not found")
-
 # brother-ql config
 label_size = (1132, 330)
 #ql_backend = 'linux_kernel'
@@ -32,7 +25,7 @@ ql_label = "17x54"
 
 # The offset of the label on the label sheet, might need some manual tweaking to get it right
 x_offset = 15
-y_offset = 12
+y_offset = -4
 
 
 def make_label(img: PIL.Image) -> PIL.Image:
@@ -180,6 +173,12 @@ def preview_raw():
 
 @app.route('/print', methods=['POST'])
 def print_label():
+    try:
+        dev = usb.core.find(idVendor=0x04f9, idProduct=0x209c)
+        dev.reset()
+    except Exception:
+        return flask.jsonify({'error': 'Failed to print label'}), 400
+
     if fqdn and fqdn != flask.request.headers.get('Host'):
         return flask.jsonify({
             'error': 'Not allowed',

@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from enum import Enum, auto
 
 lx = int(1132 * .99)
-ly = int(330 * .85)
+ly = int(330 * .90)
 padding = 20
 
 
@@ -71,8 +71,8 @@ def _qr_label(content: InventoryItem) -> PIL.Image:
         font_id = font_id.font_variant(size=font_id.size - 1)
 
     # Draw the text
-    draw_text(content.item_name, ly / 4, font_name, stroke_width=1)
-    draw_text(content.id, ly / 2 + 30, font_id)
+    draw_text(content.item_name, ly / 4 + 5, font_name, stroke_width=1)
+    draw_text(content.id, ly / 2 + 35, font_id)
 
     # Construct the label
     label = PIL.Image.new("RGB", (lx, ly), color="white")
@@ -100,7 +100,7 @@ def _barcode_label(content: InventoryItem) -> PIL.Image:
     # Construct the label
     label = PIL.Image.new("RGB", (lx, ly), color="white")
     # Add the barcode in the center
-    label.paste(image, (int((lx - image.width) / 2), int((ly - image.height) / 2) - 12))
+    label.paste(image, (int((lx - image.width) / 2), int((ly - image.height) / 2) - 17))
     # Add the text below the barcode
     font_id = ImageFont.truetype("JetBrainsMono-Light.ttf", size=int(ly/7.647))
 
@@ -108,7 +108,7 @@ def _barcode_label(content: InventoryItem) -> PIL.Image:
     while (id_draw.textbbox((0, 0), content.id, font=font_id, align="left", anchor="mm")[2] * 2) > lx - padding:
         font_id = font_id.font_variant(size=font_id.size - 1)
     id_draw.text(
-        (lx / 2, ly - 28),
+        (lx / 2, ly - 32),
         content.id,
         font=font_id,
         fill="black",
