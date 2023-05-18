@@ -1,4 +1,5 @@
 import io
+import os
 import time
 import usb.core
 import flask
@@ -8,6 +9,7 @@ from flask_cors import CORS
 from brother_ql.conversion import convert
 from brother_ql.backends.helpers import send
 from brother_ql.raster import BrotherQLRaster
+from datetime import datetime
 
 app = flask.Flask(__name__)
 CORS(app)
@@ -16,8 +18,8 @@ fqdn = ""  # If empty, all connections are allowed
 label_size = (1132, 330)
 
 # brother-ql config
-#ql_backend = 'linux_kernel'
-#ql_printer = '/dev/usb/lp0'
+# ql_backend = 'linux_kernel'
+# ql_printer = '/dev/usb/lp0'
 ql_backend = 'pyusb'
 ql_printer = 'usb://0x04f9:0x209c'
 ql_model = 'QL-810W'
@@ -53,6 +55,24 @@ def get_inventory_item(args: dict) -> tuple[InventoryItem, LabelType]:
     ), get_variant(args.get('variant'))
 
 
+def write_audit(data: dict):
+    """Write the audit to the CSV file."""
+    id = data.get('id', 'Mangler Løpenummer')
+    name = data.get('name', 'Mangler navn')
+    category = data.get('category', 'Mangler kategori')
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    with open("audits.csv", 'a+') as f:
+        text = open("audits.csv", 'r').read()
+        if not text.startswith('id,name,category,timestamp'):
+            f.write('id,name,category,timestamp\n')
+
+        if id in text:
+            return
+
+        f.write(f"{id},{name},{category},{timestamp}\n")
+
+
 def get_variant(variant: str) -> LabelType:
     """Get the label type from the given variant."""
     default = LabelType.QR
@@ -70,12 +90,49 @@ def favicon():
     return flask.send_file("favicon.ico", mimetype='image/vnd.microsoft.icon')
 
 
+@app.route('/audits')
+def audits():
+    audits = open("audits.csv", 'r').readlines()[1:][::-1]
+
+    return flask.jsonify([{
+        'id': audit.split(',')[0],
+        'name': audit.split(',')[1],
+        'category': audit.split(',')[2],
+        'timestamp': audit.split(',')[3],
+    } for audit in audits])
+
+
+
 @app.route('/', methods=['GET'])
 def home():
     if fqdn and fqdn != flask.request.headers.get('Host'):
         return flask.redirect(fqdn)
 
-    return """<html>
+    categories = [
+        'Kamera',
+        'Objektiv',
+        'Batteri',
+        'Lader',
+        'Minnekort',
+        'Minnekortleser',
+        'Lys',
+        'Mikrofon',
+        'Stativ',
+        'Filter',
+        'Lydopptaker',
+        'Adapter',
+        'Skjerm',
+        'Gimbal',
+        'Drone',
+        'Tegnebrett',
+        'Lagringsenhet',
+        'Headset',
+        'Kabel',
+        'Diverse',
+        'Mangler kategori',
+    ]
+
+    return f"""<html>
     <head>
         <title>Etikett Server</title>
         <link rel="stylesheet" href="https://unpkg.com/@picocss/pico@latest/css/pico.classless.min.css">
@@ -101,6 +158,13 @@ def home():
                     <input type="text" name="name" id="name" class="form-control" placeholder="Enhetsnavn (Sony A6500)" onchange="updatePreview()">
                 </div>
                 <div class="form-group">
+                    <label for="name">Kategori</label>
+                    <select name="category" id="category" class="form-control">
+                        <option hidden disabled selected value>Velg kategori (ikke synlig, til nytt system)</option>
+                        {''.join([f'<option value="{category}">{category}</option>' for category in categories])}
+                    </select>
+                </div>
+                <div class="form-group">
                     <table>
                         <tr>
                             <td>
@@ -122,33 +186,33 @@ def home():
             <p id="print-status"></p>
         </main>
         <script>
-            function updatePreview() {
+            function updatePreview() {{
                 let id = document.getElementById("id").value || "Mangler Løpenummer";
                 let name = document.getElementById("name").value || "Mangler navn";
-                document.getElementById("preview").src = `/preview?id=${id}&name=${name}&variant=${document.getElementById("variant").value}`;
-            }
-            function enforceMinMax(input, min, max) {
-                if (input.value < min) {
+                document.getElementById("preview").src = `/preview?id=${{id}}&name=${{name}}&variant=${{document.getElementById("variant").value}}`;
+            }}
+            function enforceMinMax(input, min, max) {{
+                if (input.value < min) {{
                     input.value = min;
-                } else if (input.value > max) {
+                }} else if (input.value > max) {{
                     input.value = max;
-                }
-            }
-            function printLabel(data) {
-                fetch("/print", {
+                }}
+            }}
+            function printLabel(data) {{
+                fetch("/print", {{
                     method: "POST",
                     body: data
-                }).then(response => {
+                }}).then(response => {{
                     let status = document.getElementById("print-status");
-                    if (response.status === 200) {
-                        status.innerText = `Skrev ut en etikett for "${data.get("id")}"!`;
+                    if (response.status === 200) {{
+                        status.innerText = `Skrev ut en etikett for "${{data.get("id")}}"!`;
                         status.style.color = "green";
-                    } else {
-                        status.innerText = `${response.status} ${response.statusText} - Kunne ikke skrive ut etiketter for '${data.get("id")}'! Dersom feilen vedvarer, kontakt IT.`;
+                    }} else {{
+                        status.innerText = `${{response.status}} ${{response.statusText}} - Kunne ikke skrive ut etiketter for '${{data.get("id")}}'! Dersom feilen vedvarer, kontakt IT.`;
                         status.style.color = "red";
-                    }
-                });
-            }
+                    }}
+                }});
+            }}
         </script>
     </body>
 </html>"""
@@ -192,6 +256,13 @@ def print_label():
             'error': 'Missing required fields',
         }), 400
 
+    if "," in item.id or "," in item.item_name:
+        print(f"Commas are not allowed in the ID or name: {item.id}, {item.item_name}")
+        return flask.jsonify({
+            'error': 'Commas are not allowed in the ID or name',
+        }), 400
+
+    write_audit(data)
     label = create_label(item, variant=variant)
     label = make_label(label)
 
