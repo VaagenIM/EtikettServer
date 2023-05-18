@@ -67,9 +67,6 @@ def write_audit(data: dict):
         if not text.startswith('id,name,category,timestamp'):
             f.write('id,name,category,timestamp\n')
 
-        if id in text:
-            return
-
         f.write(f"{id},{name},{category},{timestamp}\n")
 
 
