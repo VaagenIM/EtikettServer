@@ -95,7 +95,7 @@ def audits():
         'id': audit.split(',')[0],
         'name': audit.split(',')[1],
         'category': audit.split(',')[2],
-        'timestamp': audit.split(',')[3],
+        'timestamp': audit.split(',')[3].strip(),
     } for audit in audits])
 
 
