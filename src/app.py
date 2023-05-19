@@ -70,6 +70,18 @@ def write_audit(data: dict):
         f.write(f"{id},{name},{category},{timestamp}\n")
 
 
+def get_audits_json():
+    audits = open("audits.csv", 'r').readlines()[1:][::-1]
+
+    return [{
+        'id': audit.split(',')[0],
+        'name': audit.split(',')[1],
+        'category': audit.split(',')[2],
+        'timestamp': audit.split(',')[3],
+    } for audit in audits]
+
+
+
 def get_variant(variant: str) -> LabelType:
     """Get the label type from the given variant."""
     default = LabelType.QR
@@ -89,15 +101,7 @@ def favicon():
 
 @app.route('/audits')
 def audits():
-    audits = open("audits.csv", 'r').readlines()[1:][::-1]
-
-    return flask.jsonify([{
-        'id': audit.split(',')[0],
-        'name': audit.split(',')[1],
-        'category': audit.split(',')[2],
-        'timestamp': audit.split(',')[3].strip(),
-    } for audit in audits])
-
+    return flask.jsonify(get_audits_json())
 
 
 @app.route('/', methods=['GET'])
@@ -110,6 +114,7 @@ def home():
         'Objektiv',
         'Batteri',
         'Lader',
+        'Strømforsyning',
         'Minnekort',
         'Minnekortleser',
         'Lys',
@@ -181,6 +186,7 @@ def home():
             </form>
             <button class="btn btn-primary" onclick="printLabel(new FormData(document.querySelector('form')))">Send til printer</button>
             <p id="print-status"></p>
+            <center><p><a href="/inventory">Trykk her</a> for å se utstyrslisten (midlertidig)</p></center>
         </main>
         <script>
             function updatePreview() {{
@@ -211,6 +217,68 @@ def home():
                 }});
             }}
         </script>
+    </body>
+</html>"""
+
+
+@app.route('/inventory', methods=['GET'])
+def inventory():
+    audits = get_audits_json()
+
+    html_datatable = f"""
+    <table id="inventory" class="display">
+        <thead>
+            <tr>
+                <th>Løpenummer</th>
+                <th>Enhetsnavn</th>
+                <th>Kategori</th>
+                <th>Tidspunkt</th>
+            </tr>
+        </thead>
+        <tbody>
+            {''.join([f'<tr>'
+                      f'<td>{audit["id"]}</td>'
+                      f'<td>{audit["name"]}</td>'
+                      f'<td>{audit["category"]}</td>'
+                      f'<td>{audit["timestamp"]}</td>'
+                      f'</tr>' 
+                      for audit in audits])}
+        </tbody>
+    </table>
+    <script>
+        $(document).ready( function () {{
+            $('#inventory').DataTable( {{
+                "order": [[ 3, "desc" ]]
+                }});
+        }} );
+    </script>
+    """
+
+
+    return f"""<html>
+    <head>
+        <title>Etikett Server - Inventar</title>
+        <link rel="stylesheet" href="https://unpkg.com/@picocss/pico@latest/css/pico.classless.min.css">
+        <link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/jquery.dataTables.min.css">
+        <link rel="icon" href="favicon.ico">
+        <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.0/dist/jquery.min.js"></script>
+        <script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
+        <style>
+            input[type="search"] {{
+                text-align: center;
+            }}
+        </style>
+    </head>
+    <body>
+        <main>
+            <center>
+                <hgroup>
+                    <h1>Vågens' Etikett Server</h1>
+                    <h2>Made with ❤️ by <a href="https://github.com/VaagenIM/EtikettServer">Sondre Grønås</a></h2>
+                </hgroup>
+            </center>
+            {html_datatable}
+        </main>
     </body>
 </html>"""
 

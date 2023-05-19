@@ -41,4 +41,7 @@ Returns a preview of the label, useful for getting a preview of the label before
 Prints the label to the connected printer. (Requires setup of printer in `app.py`)
 
 ### GET `/audits`
-Returns a JSON of every job successfully sent to the printer, timestamped and sorted by newest.
+Returns a JSON of every job successfully sent to the printer, every audit is timestamped.
+
+### GET `/inventory`
+Displays an interactibe datatable of the inventory, just in case you need a quick overview.
