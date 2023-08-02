@@ -124,7 +124,7 @@ def _barcode_label(content: InventoryItem) -> PIL.Image:
 
 def _text_label(content: InventoryItem) -> PIL.Image:
     """Create a text label for the given content."""
-    font_name = ImageFont.truetype("Lato-Regular.ttf", size=int(ly/2.28))
+    font_name = ImageFont.truetype("Lato-Regular.ttf", size=int(ly/1.25))
 
     info_size = (lx, ly)
 
