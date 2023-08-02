@@ -20,6 +20,8 @@ class InventoryItem:
 class LabelType(Enum):
     QR = auto()
     BARCODE = auto()
+    TEXT = auto()
+    TEXT_2_LINES = auto()
 
 
 def _qr_label(content: InventoryItem) -> PIL.Image:
@@ -120,10 +122,90 @@ def _barcode_label(content: InventoryItem) -> PIL.Image:
     return label
 
 
+def _text_label(content: InventoryItem) -> PIL.Image:
+    """Create a text label for the given content."""
+    font_name = ImageFont.truetype("Lato-Regular.ttf", size=int(ly/2.28))
+
+    info_size = (lx, ly)
+
+    # Create the info box
+    info = PIL.Image.new("RGB", info_size, color="white")
+    info_draw = PIL.ImageDraw.Draw(info)
+
+    def draw_text(text, y, font, stroke_width=0, fill="black"):
+        info_draw.text(
+            (info_size[0]/2, y),
+            text,
+            font=font,
+            fill=fill,
+            align="left",
+            anchor="mm",
+            stroke_width=stroke_width,
+        )
+
+    # Find the correct font size
+    while (info_draw.textbbox((0, 0), content.item_name, font=font_name, align="left", anchor="mm")[2] * 2) > lx - (padding * 2):
+        font_name = font_name.font_variant(size=font_name.size - 1)
+
+    # Draw the text
+    draw_text(content.item_name, ly / 2, font_name)
+
+    # Construct the label
+    label = PIL.Image.new("RGB", (lx, ly), color="white")
+    label.paste(info, (0, 0))
+
+    return label
+
+
+def _text_label_2_lines(content: InventoryItem) -> PIL.Image:
+    """Create a text label for the given content."""
+    font_name = ImageFont.truetype("Lato-Regular.ttf", size=int(ly/2.5))
+    font_id = ImageFont.truetype("Lato-Regular.ttf", size=int(ly/2.5))
+
+    info_size = (lx, ly)
+
+    # Create the info box
+    info = PIL.Image.new("RGB", info_size, color="white")
+    info_draw = PIL.ImageDraw.Draw(info)
+
+    def draw_text(text, y, font, stroke_width=0, fill="black"):
+        info_draw.text(
+            (info_size[0]/2, y),
+            text,
+            font=font,
+            fill=fill,
+            align="left",
+            anchor="mm",
+            stroke_width=stroke_width,
+        )
+
+    # Find the correct font size
+    while (info_draw.textbbox((0, 0), content.item_name, font=font_name, align="left", anchor="mm")[2] * 2) > lx - (padding * 2):
+        font_name = font_name.font_variant(size=font_name.size - 1)
+
+    while (info_draw.textbbox((0, 0), content.id, font=font_id, align="left", anchor="mm")[2] * 2) > lx - (padding * 2):
+        font_id = font_id.font_variant(size=font_id.size - 1)
+
+
+    # Draw the text
+    draw_text(content.item_name, ly / 1.5, font_name)
+    draw_text(content.id, ly / 4, font_id)
+
+    # Construct the label
+    label = PIL.Image.new("RGB", (lx, ly), color="white")
+    label.paste(info, (0, 0))
+
+    return label
+
+
 def create_label(content: InventoryItem, variant: LabelType = LabelType.QR) -> PIL.Image:
     """Create a label for the given content and type."""
     if variant == LabelType.QR:
         return _qr_label(content)
     if variant == LabelType.BARCODE:
         return _barcode_label(content)
+    if variant == LabelType.TEXT:
+        return _text_label(content)
+    if variant == LabelType.TEXT_2_LINES:
+        return _text_label_2_lines(content)
     raise NotImplementedError()

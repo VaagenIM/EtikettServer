@@ -89,6 +89,8 @@ def get_variant(variant: str) -> LabelType:
         return {
             'qr': LabelType.QR,
             'barcode': LabelType.BARCODE,
+            'text': LabelType.TEXT,
+            'text_2_lines': LabelType.TEXT_2_LINES,
         }.get(variant.lower(), default)
     except AttributeError:
         return default
@@ -174,6 +176,8 @@ def home():
                                 <select name="variant" id="variant" class="form-control" onchange="updatePreview()">
                                     <option value="qr">QR</option>
                                     <option value="barcode">Strekkode</option>
+                                    <option value="text">Tekst</option>
+                                    <option value="text_2_lines">Tekst (2 linjer)</option>
                                 </select>
                             </td>
                             <td>
@@ -327,7 +331,8 @@ def print_label():
             'error': 'Commas are not allowed in the ID or name',
         }), 400
 
-    write_audit(data)
+    if variant not in ['text', 'text_2_lines']:
+        write_audit(data)
     label = create_label(item, variant=variant)
     label = make_label(label)
 
@@ -372,5 +377,5 @@ def brother_print(im, attempt: int = 0):
         time.sleep(1)
         brother_print(im, attempt + 1)
 
-
+# app.debug = True
 app.run(host='0.0.0.0', port=5000)

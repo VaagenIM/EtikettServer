@@ -1,6 +1,8 @@
 <div align="center">
 <h1>Etikett Server for Vågen Utstyrsbase</h1>
 Simple & hacky barcode and QR code label generator API for the Vågen Utstyrsbase.
+
+Due for a refactor - it's all just hacked together for now.
 <br>
 
 Label dimensions: `16x54mm` (Could update this to work for other sizes as well, but for now it's hardcoded with spaghetti code.)
