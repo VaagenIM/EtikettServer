@@ -1,301 +1,142 @@
 import io
 import os
 import time
-import usb.core
-import flask
-import PIL.Image
-from LabelGenerator import create_label, InventoryItem, LabelType
-from flask_cors import CORS
-from brother_ql.conversion import convert
-from brother_ql.backends.helpers import send
-from brother_ql.raster import BrotherQLRaster
-from datetime import datetime
+from functools import wraps
+from threading import Thread
 
+import PIL.Image
+import flask
+import usb.core
+from brother_ql.backends.helpers import send
+from brother_ql.conversion import convert
+from brother_ql.raster import BrotherQLRaster
+from dotenv import load_dotenv
+from flask_cors import CORS
+
+from LabelGenerator import create_label, InventoryItem, LabelType
+
+load_dotenv()
+
+# Only supports 17x54 labels (for now) (1132x330 px)
+# TODO: Support more label sizes
+LABEL_SIZE = (1132, 330)
+QL_LABEL = "17x54"
+
+FQDN = os.getenv('FQDN', None)
+QL_BACKEND = os.getenv('QL_BACKEND', 'pyusb')  # Alt: linux_kernel
+QL_PRINTER = os.getenv('QL_PRINTER', 'usb://0x04f9:0x209c')  # Alt: /dev/usb/lp0
+QL_MODEL = os.getenv('QL_MODEL', 'QL-810W')
+ID_VENDOR = os.getenv('ID_VENDOR', 0x04f9)  # Brother
+ID_PRODUCT = os.getenv('ID_PRODUCT', 0x209c)  # QL-810W
+
+# The label needs to be offset to the right and down a bit, to center it on the label (in pixels)
+# This might be different depending on the printer model, not sure
+X_OFFSET = int(os.getenv('X_OFFSET', 15))
+Y_OFFSET = int(os.getenv('Y_OFFSET', -4))
+
+
+class PrintQueue(list):
+    def __init__(self):
+        super().__init__()
+        self.t = Thread(target=self.print_worker)
+        self.t.start()
+
+    def print_worker(self):
+        fails = 0
+        while True:
+            while self:
+                try:
+                    label = self[0]
+                    brother_print(label)
+                    self.pop(0)
+                    fails = 0
+                except Exception as e:
+                    print('error', e, '(retrying in 60 seconds)')
+                    fails += 1
+                    time.sleep(60)  # wait a minute before trying again
+                if fails > 10:
+                    print('too many fails in a row, clearing queue')
+                    self.clear()
+                    fails = 0
+            time.sleep(1)  # poll every second
+
+
+queue = PrintQueue()
 app = flask.Flask(__name__)
 CORS(app)
 
-fqdn = ""  # If empty, all connections are allowed
-label_size = (1132, 330)
 
-# brother-ql config
-# ql_backend = 'linux_kernel'
-# ql_printer = '/dev/usb/lp0'
-ql_backend = 'pyusb'
-ql_printer = 'usb://0x04f9:0x209c'
-ql_model = 'QL-810W'
-ql_label = "17x54"
-
-# The offset of the label on the label sheet, might need some manual tweaking to get it right
-x_offset = 15
-y_offset = -4
-
-
-def make_label(img: PIL.Image) -> PIL.Image:
-    """Add the offset to the given image."""
-    new_label = PIL.Image.new("RGB", label_size, color="white")
-    new_label.paste(img, (x_offset, y_offset))
+def offset_label(img: PIL.Image) -> PIL.Image:
+    """Create a new label with the given label image to center it on the label."""
+    new_label = PIL.Image.new("RGB", LABEL_SIZE, color="white")
+    new_label.paste(img, (X_OFFSET, Y_OFFSET))
     return new_label
-
-
-def request_to_json(request) -> dict:
-    """Get the JSON from the given request, JSON if possible, otherwise form data."""
-    try:
-        if not request.json:
-            raise flask.wrappers.BadRequest("No JSON")
-        return request.json
-    except flask.wrappers.BadRequest:
-        return request.values
-
-
-def get_inventory_item(args: dict) -> tuple[InventoryItem, LabelType]:
-    """Get the inventory item from the given arguments."""
-    return InventoryItem(
-        id=args.get('id', 'Mangler Løpenummer'),
-        item_name=args.get('name', 'Mangler navn'),
-    ), get_variant(args.get('variant'))
-
-
-def write_audit(data: dict):
-    """Write the audit to the CSV file."""
-    id = data.get('id', 'Mangler Løpenummer')
-    name = data.get('name', 'Mangler navn')
-    category = data.get('category', 'Mangler kategori')
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-    with open("audits.csv", 'a+') as f:
-        text = open("audits.csv", 'r').read()
-        if not text.startswith('id,name,category,timestamp'):
-            f.write('id,name,category,timestamp\n')
-
-        f.write(f"{id},{name},{category},{timestamp}\n")
-
-
-def get_audits_json():
-    audits = open("audits.csv", 'r').readlines()[1:][::-1]
-
-    return [{
-        'id': audit.split(',')[0],
-        'name': audit.split(',')[1],
-        'category': audit.split(',')[2],
-        'timestamp': audit.split(',')[3],
-    } for audit in audits]
-
 
 
 def get_variant(variant: str) -> LabelType:
     """Get the label type from the given variant."""
     default = LabelType.QR
-    try:
-        return {
-            'qr': LabelType.QR,
-            'barcode': LabelType.BARCODE,
-            'text': LabelType.TEXT,
-            'text_2_lines': LabelType.TEXT_2_LINES,
-        }.get(variant.lower(), default)
-    except AttributeError:
-        return default
+    return {
+        'qr': LabelType.QR,
+        'barcode': LabelType.BARCODE,
+        'text': LabelType.TEXT,
+        'text_2_lines': LabelType.TEXT_2_LINES,
+    }.get(variant.lower(), default)
 
 
-@app.route('/favicon.ico')
-def favicon():
-    return flask.send_file("favicon.ico", mimetype='image/vnd.microsoft.icon')
+def use_fqdn_if_set(f) -> callable:
+    @wraps(f)
+    def decorated_function(*args, **kwargs) -> callable:
+        """
+        Redirect to the FQDN if it's set and the request is not using it.
+        This is to prevent the user from accessing the API from an IP address.
+        (Letting us configure a proxy and limit access to the API to only the FQDN with an access control list)
+        """
+        if FQDN and FQDN != flask.request.headers.get('Host'):
+            return flask.redirect(FQDN)
+        return f(*args, **kwargs)
+
+    return decorated_function
 
 
-@app.route('/audits')
-def audits():
-    return flask.jsonify(get_audits_json())
+def validate_input(value: str, strict=True):
+    """Validate the given input."""
+    value = value.strip()
+    if strict and not value:
+        flask.abort(400)
+    if not value:
+        return '<Mangler>'
+    return value
+
+
+def label_from_request(data: dict, strict=True) -> PIL.Image:
+    """Parse the request data."""
+    item_id = validate_input(data.get('id', ''), strict=strict)
+    item_name = validate_input(data.get('name', ''), strict=strict)
+    variant = get_variant(validate_input(data.get('variant', 'qr'), strict=strict))
+
+    if variant == LabelType.TEXT:
+        item_id = item_name
+
+    values_exist = item_id and item_name
+    if strict and not values_exist:
+        return flask.jsonify({'error': 'Mangler id eller navn'}), 400
+
+    item = InventoryItem(id=item_id, item_name=item_name)
+    return create_label(item, variant=variant)
 
 
 @app.route('/', methods=['GET'])
-def home():
-    if fqdn and fqdn != flask.request.headers.get('Host'):
-        return flask.redirect(fqdn)
-
-    categories = [
-        'Kamera',
-        'Objektiv',
-        'Batteri',
-        'Lader',
-        'Strømforsyning',
-        'Minnekort',
-        'Minnekortleser',
-        'Lys',
-        'Mikrofon',
-        'Stativ',
-        'Filter',
-        'Lydopptaker',
-        'Adapter',
-        'Skjerm',
-        'Gimbal',
-        'Drone',
-        'Tegnebrett',
-        'Lagringsenhet',
-        'Headset',
-        'Kabel',
-        'Diverse',
-        'Mangler kategori',
-    ]
-
-    return f"""<html>
-    <head>
-        <title>Etikett Server</title>
-        <link rel="stylesheet" href="https://unpkg.com/@picocss/pico@latest/css/pico.classless.min.css">
-        <link rel="icon" href="favicon.ico">
-    </head>
-    <body>
-        <main>
-            <center>
-                <hgroup>
-                    <h1>Vågens' Etikett Server</h1>
-                    <h2>Made with ❤️ by <a href="https://github.com/VaagenIM/EtikettServer">Sondre Grønås</a></h2>
-                </hgroup>
-                <img src="/preview" alt="Forhåndsvisning" id="preview" style="height:120px; border: 5px solid white; border-radius: 5px;">
-            </center>
-            <br>
-            <form action="/print" method="POST">
-                <div class="form-group">
-                    <label for="id">Løpenummer</label>
-                    <input type="text" name="id" id="id" class="form-control" placeholder="Løpenummer (A6500-01)" onchange="updatePreview()">
-                </div>
-                <div class="form-group">
-                    <label for="name">Enhetsnavn</label>
-                    <input type="text" name="name" id="name" class="form-control" placeholder="Enhetsnavn (Sony A6500)" onchange="updatePreview()">
-                </div>
-                <div class="form-group">
-                    <label for="name">Kategori</label>
-                    <select name="category" id="category" class="form-control">
-                        <option hidden disabled selected value>Velg kategori (ikke synlig, til nytt system)</option>
-                        {''.join([f'<option value="{category}">{category}</option>' for category in categories])}
-                    </select>
-                </div>
-                <div class="form-group">
-                    <table>
-                        <tr>
-                            <td>
-                                <label for="variant">Variant</label>
-                                <select name="variant" id="variant" class="form-control" onchange="updatePreview()">
-                                    <option value="qr">QR</option>
-                                    <option value="barcode">Strekkode</option>
-                                    <option value="text">Tekst</option>
-                                    <option value="text_2_lines">Tekst (2 linjer)</option>
-                                </select>
-                            </td>
-                            <td>
-                                <label for="count">Antall</label>
-                                <input type="number" name="count" id="count" class="form-control" value="1" onchange="enforceMinMax(this, 1, 9);">
-                            </td>
-                        </tr>
-                    </table>
-                </div>
-            </form>
-            <button class="btn btn-primary" onclick="printLabel(new FormData(document.querySelector('form')))">Send til printer</button>
-            <p id="print-status"></p>
-            <center><p><a href="/inventory">Trykk her</a> for å se utstyrslisten (midlertidig)</p></center>
-        </main>
-        <script>
-            function updatePreview() {{
-                let id = document.getElementById("id").value || "Mangler Løpenummer";
-                let name = document.getElementById("name").value || "Mangler navn";
-                document.getElementById("preview").src = `/preview?id=${{id}}&name=${{name}}&variant=${{document.getElementById("variant").value}}`;
-            }}
-            function enforceMinMax(input, min, max) {{
-                if (input.value < min) {{
-                    input.value = min;
-                }} else if (input.value > max) {{
-                    input.value = max;
-                }}
-            }}
-            function printLabel(data) {{
-                fetch("/print", {{
-                    method: "POST",
-                    body: data
-                }}).then(response => {{
-                    let status = document.getElementById("print-status");
-                    if (response.status === 200) {{
-                        status.innerText = `Skrev ut en etikett for "${{data.get("id")}}"!`;
-                        status.style.color = "green";
-                    }} else {{
-                        status.innerText = `${{response.status}} ${{response.statusText}} - Kunne ikke skrive ut etiketter for '${{data.get("id")}}'! Dersom feilen vedvarer, kontakt IT.`;
-                        status.style.color = "red";
-                    }}
-                }});
-            }}
-        </script>
-    </body>
-</html>"""
+@use_fqdn_if_set
+def index() -> str:
+    return flask.render_template('index.html')
 
 
-@app.route('/inventory', methods=['GET'])
-def inventory():
-    audits = get_audits_json()
-
-    html_datatable = f"""
-    <table id="inventory" class="display">
-        <thead>
-            <tr>
-                <th>Løpenummer</th>
-                <th>Enhetsnavn</th>
-                <th>Kategori</th>
-                <th>Tidspunkt</th>
-            </tr>
-        </thead>
-        <tbody>
-            {''.join([f'<tr>'
-                      f'<td>{audit["id"]}</td>'
-                      f'<td>{audit["name"]}</td>'
-                      f'<td>{audit["category"]}</td>'
-                      f'<td>{audit["timestamp"]}</td>'
-                      f'</tr>' 
-                      for audit in audits])}
-        </tbody>
-    </table>
-    <script>
-        $(document).ready( function () {{
-            $('#inventory').DataTable( {{
-                "order": [[ 3, "desc" ]]
-                }});
-        }} );
-    </script>
-    """
-
-
-    return f"""<html>
-    <head>
-        <title>Etikett Server - Inventar</title>
-        <link rel="stylesheet" href="https://unpkg.com/@picocss/pico@latest/css/pico.classless.min.css">
-        <link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/jquery.dataTables.min.css">
-        <link rel="icon" href="favicon.ico">
-        <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.0/dist/jquery.min.js"></script>
-        <script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
-        <style>
-            input[type="search"] {{
-                text-align: center;
-            }}
-        </style>
-    </head>
-    <body>
-        <main>
-            <center>
-                <hgroup>
-                    <h1>Vågens' Etikett Server</h1>
-                    <h2>Made with ❤️ by <a href="https://github.com/VaagenIM/EtikettServer">Sondre Grønås</a></h2>
-                </hgroup>
-            </center>
-            {html_datatable}
-        </main>
-    </body>
-</html>"""
-
-
-@app.route('/preview', methods=['GET', 'POST'])
-def preview_raw():
-    if fqdn and fqdn != flask.request.headers.get('Host'):
-        return flask.redirect(fqdn)
-
-    data = request_to_json(flask.request)
-    item, variant = get_inventory_item(data)
-
-    label = create_label(item, variant=variant)
+@app.route('/preview', methods=['GET'])
+@use_fqdn_if_set
+def preview():
+    """Preview the label with the given data."""
+    label = label_from_request(flask.request.args, strict=False)
 
     img_bytes = io.BytesIO()
     label.save(img_bytes, format='PNG')
@@ -305,77 +146,53 @@ def preview_raw():
 
 
 @app.route('/print', methods=['POST'])
+@use_fqdn_if_set
 def print_label():
+    """Print the label with the given data."""
+    # Check if the printer is connected
     try:
-        dev = usb.core.find(idVendor=0x04f9, idProduct=0x209c)
-        dev.reset()
+        dev = usb.core.find(idVendor=ID_VENDOR, idProduct=ID_PRODUCT)
+        dev.reset()  # (Might not be needed)
+    # If this fails, it's probably because the printer is not connected, so just ignore it for now
+    # TODO: Proper error handling
     except Exception:
         return flask.jsonify({'error': 'Failed to print label'}), 500
-    if fqdn and fqdn != flask.request.headers.get('Host'):
-        return flask.jsonify({
-            'error': 'Not allowed',
-        }), 403
 
-    data = request_to_json(flask.request)
-    count = int(data.get('count', 1))
-    item, variant = get_inventory_item(data)
-
-    if not item.id or not item.item_name:
-        return flask.jsonify({
-            'error': 'Missing required fields',
-        }), 400
-
-    if "," in item.id or "," in item.item_name:
-        print(f"Commas are not allowed in the ID or name: {item.id}, {item.item_name}")
-        return flask.jsonify({
-            'error': 'Commas are not allowed in the ID or name',
-        }), 400
-
-    if variant not in ['text', 'text_2_lines']:
-        write_audit(data)
-    label = create_label(item, variant=variant)
-    label = make_label(label)
-
+    label = offset_label(label_from_request(flask.request.json))
     try:
-        for i in range(count):
-            brother_print(label)
-    except FileNotFoundError:
-        return flask.jsonify({
-            'error': 'Failed to print label',
-        }), 500
+        count = int(flask.request.json.get('count', 1))
+    except ValueError:
+        count = 1
+    if count < 1 or count >= 10:
+        flask.jsonify({'error': 'Count must be between 1 and 10'}), 400
+
+    [queue.append(label) for _ in range(count)]
 
     return flask.jsonify({
-        'status': 'ok',
+        'success': True,
     }), 200
 
 
-def brother_print(im, attempt: int = 0):
-    qlr = BrotherQLRaster(ql_model)
+def brother_print(im):
+    qlr = BrotherQLRaster(QL_MODEL)
     qlr.exception_on_warning = True
-
-    if attempt > 5:
-        raise FileNotFoundError(f"Failed to print label, ${ql_printer} not found?")
 
     instructions = convert(
         qlr=qlr,
-        images=[im],  # Takes a list of file names or PIL objects.
-        label=ql_label,
+        images=[im],
+        label=QL_LABEL,
         rotate=90,
-        threshold=70.0,  # Black and white threshold in percent.
+        threshold=70.0,
         dither=False,
         compress=False,
-        red=False,  # Only True if using Red/Black 62 mm label tape.
+        red=False,
         dpi_600=True,
-        hq=True,  # False for low quality.
+        hq=True,
         cut=True
     )
 
-    try:
-        send(instructions=instructions, printer_identifier=ql_printer, backend_identifier=ql_backend, blocking=True)
-    except Exception:
-        # Re-try after waiting a second
-        time.sleep(1)
-        brother_print(im, attempt + 1)
+    send(instructions=instructions, printer_identifier=QL_PRINTER, backend_identifier=QL_BACKEND, blocking=True)
 
-# app.debug = True
-app.run(host='0.0.0.0', port=5000)
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000)
