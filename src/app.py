@@ -51,6 +51,12 @@ class PrintQueue(list):
                 self.pop(0)
                 fails = 0
                 print('printed label')
+            except usb.core.USBError:
+                print('USB error, assuming print job was successful')
+                # (The printer connection is handled by the request,
+                # so if the request is successful, the printer is connected,
+                # and this is likely a false positive)
+                self.pop(0)
             except Exception as e:
                 print('error', e, '(retrying in 60 seconds)')
                 fails += 1
@@ -155,10 +161,12 @@ def print_label():
     except Exception:
         return flask.jsonify({'error': 'Failed to print label'}), 500
 
-    if flask.request.json:
+    content_type = flask.request.headers.get('Content-Type')
+    if content_type == 'application/json':
         data = flask.request.json
     else:
         data = flask.request.args
+
     label = offset_label(label_from_request(data))
     try:
         count = int(data.get('count', 1))
@@ -192,10 +200,7 @@ def brother_print(im):
         cut=True
     )
 
-    try:
-        send(instructions=instructions, printer_identifier=QL_PRINTER, backend_identifier=QL_BACKEND, blocking=True)
-    except usb.core.USBError as e:
-        print('USBError:', e)
+    send(instructions=instructions, printer_identifier=QL_PRINTER, backend_identifier=QL_BACKEND, blocking=True)
 
 def on_exit(signum=None, frame=None):
     queue.running = False
