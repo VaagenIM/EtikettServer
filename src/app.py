@@ -155,9 +155,13 @@ def print_label():
     except Exception:
         return flask.jsonify({'error': 'Failed to print label'}), 500
 
-    label = offset_label(label_from_request(flask.request.json))
+    if flask.request.json:
+        data = flask.request.json
+    else:
+        data = flask.request.args
+    label = offset_label(label_from_request(data))
     try:
-        count = int(flask.request.json.get('count', 1))
+        count = int(data.get('count', 1))
     except ValueError:
         count = 1
     if count < 1 or count >= 10:
@@ -188,8 +192,10 @@ def brother_print(im):
         cut=True
     )
 
-    send(instructions=instructions, printer_identifier=QL_PRINTER, backend_identifier=QL_BACKEND, blocking=True)
-
+    try:
+        send(instructions=instructions, printer_identifier=QL_PRINTER, backend_identifier=QL_BACKEND, blocking=True)
+    except usb.core.USBError as e:
+        print('USBError:', e)
 
 def on_exit(signum=None, frame=None):
     queue.running = False
