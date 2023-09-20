@@ -1,6 +1,8 @@
 import io
 import os
 import time
+import atexit
+import signal
 from functools import wraps
 from threading import Thread
 
@@ -23,11 +25,11 @@ LABEL_SIZE = (1132, 330)
 QL_LABEL = "17x54"
 
 FQDN = os.getenv('FQDN', None)
-QL_BACKEND = os.getenv('QL_BACKEND', 'pyusb')  # Alt: linux_kernel
-QL_PRINTER = os.getenv('QL_PRINTER', 'usb://0x04f9:0x209c')  # Alt: /dev/usb/lp0
+QL_PRINTER = os.getenv('QL_PRINTER', 'usb://0x04f9:0x209c')
 QL_MODEL = os.getenv('QL_MODEL', 'QL-810W')
-ID_VENDOR = os.getenv('ID_VENDOR', 0x04f9)  # Brother
-ID_PRODUCT = os.getenv('ID_PRODUCT', 0x209c)  # QL-810W
+QL_BACKEND = 'pyusb'
+ID_VENDOR = int(QL_PRINTER.split('usb://')[1].split(':')[0], 16)
+ID_PRODUCT = int(QL_PRINTER.split(':')[2], 16)
 
 # The label needs to be offset to the right and down a bit, to center it on the label (in pixels)
 # This might be different depending on the printer model, not sure
@@ -39,11 +41,12 @@ class PrintQueue(list):
     def __init__(self):
         super().__init__()
         self.t = Thread(target=self.print_worker)
+        self.running = True
         self.t.start()
 
     def print_worker(self):
         fails = 0
-        while True:
+        while self.running:
             while self:
                 try:
                     label = self[0]
@@ -99,28 +102,23 @@ def use_fqdn_if_set(f) -> callable:
     return decorated_function
 
 
-def validate_input(value: str, strict=True):
+def validate_input(value: str, strict=True, variant: LabelType = LabelType.QR) -> str:
     """Validate the given input."""
     value = value.strip()
-    if strict and not value:
+    one_line = variant in [LabelType.TEXT]
+    no_value = not value or one_line
+    if strict and no_value:
         flask.abort(400)
-    if not value:
+    if no_value:
         return '<Mangler>'
     return value
 
 
-def label_from_request(data: dict, strict=True) -> PIL.Image:
+def label_from_request(data: dict, strict=False) -> PIL.Image:
     """Parse the request data."""
-    item_id = validate_input(data.get('id', ''), strict=strict)
-    item_name = validate_input(data.get('name', ''), strict=strict)
     variant = get_variant(validate_input(data.get('variant', 'qr'), strict=strict))
-
-    if variant == LabelType.TEXT:
-        item_id = item_name
-
-    values_exist = item_id and item_name
-    if strict and not values_exist:
-        return flask.jsonify({'error': 'Mangler id eller navn'}), 400
+    item_id = validate_input(data.get('id', ''), strict=strict, variant=variant)
+    item_name = validate_input(data.get('name', ''), strict=strict, variant=variant)
 
     item = InventoryItem(id=item_id, item_name=item_name)
     return create_label(item, variant=variant)
@@ -158,7 +156,7 @@ def print_label():
     except Exception:
         return flask.jsonify({'error': 'Failed to print label'}), 500
 
-    label = offset_label(label_from_request(flask.request.json))
+    label = offset_label(label_from_request(flask.request.json, strict=True))
     try:
         count = int(flask.request.json.get('count', 1))
     except ValueError:
@@ -192,6 +190,17 @@ def brother_print(im):
     )
 
     send(instructions=instructions, printer_identifier=QL_PRINTER, backend_identifier=QL_BACKEND, blocking=True)
+
+
+def on_exit(signum=None, frame=None):
+    queue.running = False
+    queue.t.join()
+    raise SystemExit
+
+
+atexit.register(on_exit)
+signal.signal(signal.SIGTERM, on_exit)
+signal.signal(signal.SIGINT, on_exit)
 
 
 if __name__ == '__main__':
