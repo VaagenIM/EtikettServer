@@ -40,30 +40,34 @@ Y_OFFSET = int(os.getenv('Y_OFFSET', -4))
 class PrintQueue(list):
     def __init__(self):
         super().__init__()
-        self.t = Thread(target=self.print_worker)
-        self.running = True
-        self.t.start()
+        self.running = False
 
     def print_worker(self):
         fails = 0
-        while self.running:
-            while self:
-                try:
-                    label = self[0]
-                    brother_print(label)
-                    self.pop(0)
-                    fails = 0
-                    print('printed label')
-                except Exception as e:
-                    print('error', e, '(retrying in 60 seconds)')
-                    fails += 1
-                    time.sleep(60)  # wait a minute before trying again
-                if fails > 10:
-                    print('too many fails in a row, clearing queue')
-                    self.clear()
-                    fails = 0
-            time.sleep(1)  # poll every second
+        while self:
+            try:
+                label = self[0]
+                brother_print(label)
+                self.pop(0)
+                fails = 0
+                print('printed label')
+            except Exception as e:
+                print('error', e, '(retrying in 60 seconds)')
+                fails += 1
+                time.sleep(5)  # wait 5 seconds before retrying
+            if fails > 10:
+                print('too many fails in a row, clearing queue')
+                self.clear()
+                fails = 0
+        print('queue empty')
+        self.running = False
 
+    def append(self, item):
+        super().append(item)
+        print('added label to queue')
+        if not self.running:
+            self.running = True
+            Thread(target=self.print_worker).start()
 
 queue = PrintQueue()
 app = flask.Flask(__name__)
@@ -189,7 +193,6 @@ def brother_print(im):
 
 def on_exit(signum=None, frame=None):
     queue.running = False
-    queue.t.join()
     raise SystemExit
 
 
