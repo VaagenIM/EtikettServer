@@ -53,6 +53,7 @@ class PrintQueue(list):
                     brother_print(label)
                     self.pop(0)
                     fails = 0
+                    print('printed label')
                 except Exception as e:
                     print('error', e, '(retrying in 60 seconds)')
                     fails += 1
@@ -96,29 +97,23 @@ def use_fqdn_if_set(f) -> callable:
         (Letting us configure a proxy and limit access to the API to only the FQDN with an access control list)
         """
         if FQDN and FQDN != flask.request.headers.get('Host'):
-            return flask.redirect(FQDN)
+            return flask.redirect(f'//{FQDN}', code=301)
         return f(*args, **kwargs)
 
     return decorated_function
 
 
-def validate_input(value: str, strict=True, variant: LabelType = LabelType.QR) -> str:
+def validate_input(value: str) -> str:
     """Validate the given input."""
     value = value.strip()
-    one_line = variant in [LabelType.TEXT]
-    no_value = not value or one_line
-    if strict and no_value:
-        flask.abort(400)
-    if no_value:
-        return '<Mangler>'
-    return value
+    return value if value else '<Mangler>'
 
 
-def label_from_request(data: dict, strict=False) -> PIL.Image:
+def label_from_request(data: dict) -> PIL.Image:
     """Parse the request data."""
-    variant = get_variant(validate_input(data.get('variant', 'qr'), strict=strict))
-    item_id = validate_input(data.get('id', ''), strict=strict, variant=variant)
-    item_name = validate_input(data.get('name', ''), strict=strict, variant=variant)
+    item_id = validate_input(data.get('id', ''))
+    item_name = validate_input(data.get('name', ''))
+    variant = get_variant(validate_input(data.get('variant', 'qr')))
 
     item = InventoryItem(id=item_id, item_name=item_name)
     return create_label(item, variant=variant)
@@ -134,7 +129,7 @@ def index() -> str:
 @use_fqdn_if_set
 def preview():
     """Preview the label with the given data."""
-    label = label_from_request(flask.request.args, strict=False)
+    label = label_from_request(flask.request.args)
 
     img_bytes = io.BytesIO()
     label.save(img_bytes, format='PNG')
@@ -156,7 +151,7 @@ def print_label():
     except Exception:
         return flask.jsonify({'error': 'Failed to print label'}), 500
 
-    label = offset_label(label_from_request(flask.request.json, strict=True))
+    label = offset_label(label_from_request(flask.request.json))
     try:
         count = int(flask.request.json.get('count', 1))
     except ValueError:
