@@ -8,6 +8,12 @@
       .hidden {
         display: none;
       }
+
+      .label-preview {
+        width: 50%;
+        border: .5rem solid white;
+        border-radius: 1rem;
+      }
     </style>
 </head>
 <body>
@@ -17,8 +23,7 @@
             <h1>Vågens' Etikett Server</h1>
             <h2>Made with ❤️ by <a href="https://github.com/VaagenIM/EtikettServer">Sondre Grønås</a></h2>
         </hgroup>
-        <img src="{{ url_for('preview') }}" alt="Forhåndsvisning" id="preview"
-             style="height:120px; border: 5px solid white; border-radius: 5px;">
+        <img src="{{ url_for('preview') }}" alt="Forhåndsvisning" class="label-preview">
     </center>
     <br>
     <form action="/print" method="POST">
