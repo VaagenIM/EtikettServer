@@ -11,6 +11,7 @@ lx = int(1132 * .99)
 ly = int(330 * .90)
 padding = 20
 
+output_label_dimensions = (int(((50/25.4) * 203) * 2), int(((26/25.4) * 203) * 2))
 
 @dataclass
 class InventoryItem:
@@ -191,14 +192,24 @@ def _text_label_2_lines(content: InventoryItem) -> PIL.Image:
     return label
 
 
+def paste_on_label(label: PIL.Image) -> PIL.Image:
+    """Paste the given label on a new label."""
+    new_label = PIL.Image.new("RGB", output_label_dimensions, color="white")
+
+    label.thumbnail((output_label_dimensions[0], output_label_dimensions[1]))
+    new_label.paste(label, (int((output_label_dimensions[0] - label.width) / 2), int((output_label_dimensions[1] - label.height) / 2)))
+
+    return new_label
+
+
 def create_label(content: InventoryItem, variant: LabelType = LabelType.QR) -> PIL.Image:
     """Create a label for the given content and type."""
     if variant == LabelType.QR:
-        return _qr_label(content)
+        return paste_on_label(_qr_label(content))
     if variant == LabelType.BARCODE:
-        return _barcode_label(content)
+        return paste_on_label(_barcode_label(content))
     if variant == LabelType.TEXT:
-        return _text_label(content)
+        return paste_on_label(_text_label(content))
     if variant == LabelType.TEXT_2_LINES:
-        return _text_label_2_lines(content)
+        return paste_on_label(_text_label_2_lines(content))
     raise NotImplementedError()

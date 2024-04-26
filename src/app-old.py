@@ -8,12 +8,12 @@ from threading import Thread
 
 import PIL.Image
 import flask
-# import usb.core
-# from brother_ql.backends.helpers import send
-# from brother_ql.conversion import convert
-# from brother_ql.raster import BrotherQLRaster
+import usb.core
+from brother_ql.backends.helpers import send
+from brother_ql.conversion import convert
+from brother_ql.raster import BrotherQLRaster
 from dotenv import load_dotenv
-# from flask_cors import CORS
+from flask_cors import CORS
 
 from LabelGenerator import create_label, InventoryItem, LabelType
 
@@ -21,8 +21,8 @@ load_dotenv()
 
 # Only supports 17x54 labels (for now) (1132x330 px)
 # TODO: Support more label sizes
-QL_LABEL = "50x26"
-LABEL_SIZE = ((50/25.4)*203, (26/25.4)*203)
+LABEL_SIZE = (1132, 330)
+QL_LABEL = "17x54"
 
 FQDN = os.getenv('FQDN', None)
 QL_PRINTER = os.getenv('QL_PRINTER', 'usb://0x04f9:0x209c')
