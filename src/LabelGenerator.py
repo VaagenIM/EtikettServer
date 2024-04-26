@@ -104,13 +104,31 @@ def _barcode_label(content: InventoryItem) -> PIL.Image:
     }
     image = barcode.get('code128', content.id, writer=barcode.writer.ImageWriter()).render(options)
 
+    font_logo = ImageFont.truetype(FONT_BOLD, size=int(ly / 6.5))
+
     # Resize the image to fit the label, if needed
     if image.width > lx:
         image = image.resize((lx - padding, image.height))
 
+    logo_start = 150
+    logo_end = lx - 350
+    logo_height = int(ly / 3.61)
+
+    # Create the logo (black pill, white text)
+    logo = PIL.Image.new("RGB", (logo_end, logo_height), color="white")
+    logo_draw = PIL.ImageDraw.Draw(logo)
+    logo_draw.ellipse((logo_start, 2, logo_start + 35, logo_height), fill="black", outline="black", width=15)
+    logo_draw.ellipse((logo_end - 35, 2, logo_end, logo_height), fill="black", outline="black", width=15)
+    logo_draw.rectangle((logo_start + 22, 2, logo_end - 22, logo_height), fill="black", outline="black", width=15)
+    logo_draw.text(((logo_end + 150) / 2, logo_height / 2), "Vågen Videregående Skole", font=font_logo,
+                   fill="white",
+                   align="left", anchor="mm")
+
     # Construct the label
     label = PIL.Image.new("RGB", (lx, ly), color="white")
-    label.paste(image, (int((lx - image.width) / 2), int((ly - image.height) / 2) + 15))
+    label.paste(image, (int((lx - image.width) / 2), int((ly - image.height) / 2) + 35))
+    label.paste(PIL.Image.new("RGB", (lx, logo.height + 3), color="white"), (0, 0))
+    label.paste(logo, (100, -5))
 
     return label
 
