@@ -152,5 +152,4 @@ signal.signal(signal.SIGINT, on_exit)
 
 
 if __name__ == '__main__':
-    os.system('service cups start')
     app.run(host='0.0.0.0', port=5000)
