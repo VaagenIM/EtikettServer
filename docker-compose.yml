@@ -1,0 +1,12 @@
+services:
+  etikettserver:
+    build: .
+    privileged: true
+    ports:
+      - "5000:5000"
+      - "631:631"
+    volumes:
+      - /dev/bus/usb:/dev/bus/usb
+      - /var/run/dbus:/var/run/dbus
+    # environment:
+      # - FQDN=  # Only allow requests from this domain

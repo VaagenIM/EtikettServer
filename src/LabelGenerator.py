@@ -39,7 +39,7 @@ def _qr_label(content: InventoryItem) -> PIL.Image:
     font_logo = ImageFont.truetype(FONT_LOGO, size=int(ly / 6.8))
 
     qr_size = (int(ly*0.5), int(ly*0.5))
-    info_size = (int(lx) - int(ly*0.55), int(ly*0.5))
+    info_size = (int(lx) - int(ly*0.55), int(ly))
 
     # Create the QR code
     qr = qrcode.QRCode(border=0)
@@ -82,7 +82,7 @@ def _qr_label(content: InventoryItem) -> PIL.Image:
 
     # Draw the text
     draw_text(content.item_name, ly / 5 - 5, font_name, stroke_width=1)
-    draw_text(content.id, ly / 2 - 15, font_id)
+    draw_text(content.id, ly / 2 - 10, font_id)
 
     # Construct the label
     label = PIL.Image.new("RGB", (lx, ly), color="white")
@@ -99,7 +99,7 @@ def _barcode_label(content: InventoryItem) -> PIL.Image:
         'module_height': ly / 25,
         'module_width': ly / 742.857,
         'font_path': FONT_NAME,
-        'text_distance': 4,
+        'text_distance': 4
     }
     image = barcode.get('code128', content.id, writer=barcode.writer.ImageWriter()).render(options)
 
