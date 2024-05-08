@@ -3,30 +3,23 @@
 Simple & hacky barcode and QR code label generator API for the Vågen Utstyrsbase.
 <br>
 
-Label dimensions: `17x54mm` (Could update this to work for other sizes as well, but for now it's hardcoded with
+Label dimensions: `50x26mm` Zebra Labels (Could update this to work for other sizes as well, but for now it's hardcoded with
 spaghetti code.)
 
-<img src="demo/qr_long.png" style="" width="300" alt="QR label preview">
-<img src="demo/barcode_long.png" style="border-radius: 5px; border: 10px solid white; background-color: white;" width="300" alt="Barcode label preview">
+<img src="demo/qr.png" style="" width="300" alt="QR label preview">
+<img src="demo/barcode.png" style="border-radius: 5px; border: 10px solid white; background-color: white;" width="300" alt="Barcode label preview">
 
 </div>
 
 ## Installation
 
 1. Clone the repository
-2. Run `pip install -r requirements.txt`
-3. Download fonts from the links below, you might have to put them in the `src` folder
-4. Configure `app.py` according to the [brother-ql](https://pypi.org/project/brother-ql/) package (or use `.env`)
-
-Fonts:
-
-- https://fonts.google.com/specimen/Lato
-- https://fonts.google.com/specimen/JetBrains+Mono
+2. Ensure cups is installed and Zebra printer is working
+3. Run `docker compose up -d`
 
 ## Usage
 
-Run with `python app.py` and go to `http://ip-address:5000/` in your browser to design and print labels. You can also
-integrate in your own application by using the API endpoints.
+Visit `http://ip-address:5000/` in your browser to design and print labels. You can also integrate in your own application by using the API endpoints.
 
 ## Endpoints
 
