@@ -4,9 +4,6 @@ ENV FQDN="127.0.0.1:5000"
 
 # Install Printer Driver
 RUN apt-get update && apt-get install -y \
-    cups \
-    printer-driver-all \
-    cups-pdf \
     cups-client \
     && rm -rf /var/lib/apt/lists/*
 
