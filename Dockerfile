@@ -15,6 +15,4 @@ WORKDIR /app
 
 EXPOSE 5000/tcp
 
-RUN echo "service cups start && python app.py" > entrypoint.sh
-
-CMD ["sh", "entrypoint.sh"]
+CMD ["python", "app.py"]
