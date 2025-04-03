@@ -83,10 +83,6 @@ def label_from_request(data: dict) -> PIL.Image:
     item_name = validate_input(data.get("name", ""))
     variant = get_variant(validate_input(data.get("variant", "qr")))
 
-    # If variant is qr, switch id and name
-    if variant == LabelType.QR:
-        item_id, item_name = item_name, item_id
-
     item = InventoryItem(id=item_id, item_name=item_name)
     return create_label(item, variant=variant)
 
